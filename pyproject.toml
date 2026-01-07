@@ -1,0 +1,40 @@
+[project]
+name = "jobless"
+version = "0.1.0"
+authors = [{ name = "dnlzrgz", email = "contact@dnlzrgz.com" }]
+license = "MIT"
+description = "tui for managing and keeping track of job applications."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "textual>=7.0.1",
+]
+
+[project.urls]
+homepage = "https://dnlzrgz.com/projects/jobless/"
+source = "https://github.com/dnlzrgz/jobless"
+issues = "https://github.com/dnlzrgz/jobless/issues"
+releases = "https://github.com/dnlzrgz/jobless/releases"
+
+[project.scripts]
+jobless = "jobless:main.main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "commitizen>=4.11.0",
+    "pre-commit>=4.5.1",
+    "ruff>=0.14.10",
+    "textual-dev>=1.8.0",
+]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "pep440"
+version_provider = "uv"
+update_changelog_on_bump = true
+major_version_zero = true
