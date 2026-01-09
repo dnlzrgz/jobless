@@ -78,6 +78,7 @@ def init_db(conn: sqlite3.Connection) -> None:
         email TEXT,
         phone TEXT,
         url TEXT,
+
         notes TEXT,
 
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
