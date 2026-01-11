@@ -1,11 +1,13 @@
 import pytest
+from sqlmodel import Session
 
-from jobless.db import get_connection, init_db
+from jobless.db import get_engine, init_db
 
 
 @pytest.fixture
-def db_conn():
-    db_url = ":memory:"
-    with get_connection(db_url) as conn:
-        init_db(conn)
-        yield conn
+def session():
+    engine = get_engine(db_url="sqlite:///:memory:")
+    init_db(engine)
+
+    with Session(engine) as session:
+        yield session
