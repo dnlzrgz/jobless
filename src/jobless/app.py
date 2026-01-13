@@ -75,9 +75,9 @@ class JoblessApp(App):
 
     def compose(self) -> ComposeResult:
         self.custom_header: Static = CustomHeader(f"↪ {APP_NAME}", f"{APP_VERSION}")
-        self.applications_table = CustomDataTable("applications")
-        self.companies_table: DataTable = CustomDataTable("companies")
-        self.contacts_table: DataTable = CustomDataTable("contacts")
+        self.applications_table: CustomDataTable = CustomDataTable("applications")
+        self.companies_table: CustomDataTable = CustomDataTable("companies")
+        self.contacts_table: CustomDataTable = CustomDataTable("contacts")
 
         yield self.custom_header
 
