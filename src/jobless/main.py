@@ -1,2 +1,6 @@
+from jobless.app import JoblessApp
+
+
 def main() -> None:
-    print("Hello, world!")
+    app = JoblessApp()
+    app.run()

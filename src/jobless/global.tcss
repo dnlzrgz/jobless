@@ -1,0 +1,49 @@
+* {
+  scrollbar-background-active: $surface-darken-1;
+  scrollbar-background-hover: $surface-darken-1;
+  scrollbar-background: $surface-darken-1;
+  scrollbar-color-active: $primary;
+  scrollbar-color-hover: $primary 80%;
+  scrollbar-color: $surface-lighten-1 60%;
+  scrollbar-size-vertical: 1;
+  scrollbar-size-horizontal: 0;
+
+  &:focus {
+    scrollbar-color: $primary 55%;
+  }
+}
+
+.header {
+  height: 1;
+  margin: 1;
+  margin-bottom: 0;
+  width: 100%;
+
+  .title {
+    color: $primary;
+    text-style: bold;
+  }
+
+  .subtitle {
+    color: $secondary;
+    margin-left: 1;
+  }
+}
+
+.main {
+  grid-columns: 2fr 4fr;
+  grid-size: 2 2;
+  layout: grid;
+  margin: 1;
+
+  .companies,
+  .applications,
+  .contacts {
+    border: round $accent;
+    height: 1fr;
+  }
+
+  .applications {
+    row-span: 2;
+  }
+}
