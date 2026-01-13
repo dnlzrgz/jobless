@@ -1,3 +1,11 @@
+## 0.4.0 (2026-01-13)
+
+### Feat
+
+- **app**: add custom data tables and header
+- **scripts**: add script to populate the db
+- add support for settings
+
 ## 0.3.0 (2026-01-11)
 
 ### Feat
