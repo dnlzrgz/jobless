@@ -36,11 +36,25 @@
   layout: grid;
   margin: 1;
 
-  .companies,
-  .applications,
-  .contacts {
-    border: round $accent;
+  .table {
+    border: round $foreground;
     height: 1fr;
+    opacity: 80%;
+
+    &:focus {
+      border: round $accent;
+      opacity: 100%;
+    }
+
+    .datatable--header {
+      background: $background;
+      color: $accent;
+    }
+
+    .datatable--cursor {
+      background: $primary;
+      color: $background;
+    }
   }
 
   .applications {
