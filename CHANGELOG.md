@@ -1,3 +1,13 @@
+## 0.4.1 (2026-01-14)
+
+### Fix
+
+- **app**: update data tables type hints
+
+### Refactor
+
+- **app**: add config dict for data tables
+
 ## 0.4.0 (2026-01-13)
 
 ### Feat
