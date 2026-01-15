@@ -1,3 +1,9 @@
+## 0.5.0 (2026-01-15)
+
+### Feat
+
+- **app**: add bindings for delete and refresh actions
+
 ## 0.4.1 (2026-01-14)
 
 ### Fix
