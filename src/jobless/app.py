@@ -1,7 +1,9 @@
 from typing import Any
+
 from sqlmodel import select
 from textual import work
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import ScrollableContainer
 from textual.widgets import DataTable, Footer
 
@@ -9,6 +11,7 @@ from jobless.constants import APP_NAME
 from jobless.db import get_engine, get_session, init_db
 from jobless.models import Application, Company, Contact
 from jobless.settings import Settings
+from jobless.widgets.confirmation import ConfirmationModal
 from jobless.widgets.header import AppHeader
 
 TABLE_CONFIG = {
@@ -77,6 +80,29 @@ class JoblessApp(App):
 
     TITLE = APP_NAME
     CSS_PATH = "global.tcss"
+    ENABLE_COMMAND_PALETTE = False
+
+    BINDINGS = [
+        Binding(
+            "ctrl+c",
+            "app.quit",
+            description="quit",
+            tooltip="quit the application",
+            priority=True,
+        ),
+        Binding(
+            "backspace",
+            "delete",
+            description="delete",
+            tooltip="delete current entry",
+        ),
+        Binding(
+            "R",
+            "refresh_all",
+            description="refresh all",
+            tooltip="refresh the data",
+        ),
+    ]
 
     def __init__(self):
         super().__init__()
@@ -120,6 +146,49 @@ class JoblessApp(App):
             table.add_columns(*config["columns"])
             table.border_title = table_name
             self._load_data(table, config)
+
+    def action_refresh_all(self) -> None:
+        for table_name, config in TABLE_CONFIG.items():
+            table = self.query_one(f"#{table_name}", DataTable)
+            assert table
+
+            self._load_data(table, config)
+
+    def action_delete(self) -> None:
+        focused = self.focused
+        assert focused
+
+        if isinstance(focused, DataTable) and focused.cursor_row is not None:
+            table_id = focused.id
+            assert focused.id
+
+            item_id, item_name, *_ = focused.get_row_at(focused.cursor_row)
+
+            def check_confirmation(confirmed: bool | None) -> None:
+                if not confirmed:
+                    return
+
+                config = TABLE_CONFIG.get(table_id)
+                assert config
+
+                with get_session(self.engine) as session:
+                    model = config["model"]
+                    item = session.get(model, int(item_id))
+                    if item:
+                        session.delete(item)
+                        session.commit()
+
+                        self.notify(f'deleted "{item_name}" from {table_id}')
+                        self.action_refresh_all()
+                    else:
+                        self.notify(f'item "{item_name}" not found', severity="error")
+
+            self.push_screen(
+                ConfirmationModal(
+                    message=f'Are you sure you want to delete "{item_name}" from {table_id}?',
+                ),
+                callback=check_confirmation,
+            )
 
     @work(thread=True)
     def _load_data(self, table: DataTable, config: dict) -> None:
