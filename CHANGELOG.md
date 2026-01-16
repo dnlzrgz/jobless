@@ -1,3 +1,9 @@
+## 0.6.0 (2026-01-16)
+
+### Feat
+
+- **app**: add custom data tables subclasses
+
 ## 0.5.0 (2026-01-15)
 
 ### Feat

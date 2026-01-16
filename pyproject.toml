@@ -1,6 +1,6 @@
 [project]
 name = "jobless"
-version = "0.5.0"
+version = "0.6.0"
 authors = [{ name = "dnlzrgz", email = "contact@dnlzrgz.com" }]
 license = "MIT"
 description = "tui for managing and keeping track of job applications."
