@@ -141,6 +141,10 @@ class Application(Base, table=True):
         link_model=ApplicationContactLink,
     )
 
+    @property
+    def company_name(self) -> str:
+        return self.company.name
+
 
 class Entry(Base, table=True):
     content: str
