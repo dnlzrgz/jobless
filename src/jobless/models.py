@@ -1,6 +1,8 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+from urllib.parse import urlparse
 from enum import StrEnum
 
+from pydantic import EmailStr, field_validator
 from sqlmodel import Field, Relationship, SQLModel, func
 
 
@@ -74,11 +76,14 @@ class ApplicationContactLink(SQLModel, table=True):
 class Base(SQLModel):
     id: int | None = Field(default=None, primary_key=True)
 
-    created_at: datetime = Field(default_factory=func.now)
+    created_at: datetime = Field(default=datetime.now(timezone.utc))
     last_updated: datetime = Field(
-        default_factory=func.now,
+        default_factory=lambda: datetime.now(timezone.utc),
         sa_column_kwargs={"onupdate": func.now()},
     )
+
+    class Config:
+        validate_assignment = True
 
 
 class Company(Base, table=True):
@@ -173,8 +178,8 @@ class Skill(Base, table=True):
 
 
 class Contact(Base, table=True):
-    name: str = Field(index=True)
-    email: str | None = None
+    name: str = Field(index=True, min_length=1)
+    email: EmailStr | None = None
     phone: str | None = None
     url: str | None = None
 
@@ -188,3 +193,16 @@ class Contact(Base, table=True):
         back_populates="contacts",
         link_model=ApplicationContactLink,
     )
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str | None) -> str | None:
+        if not v:
+            return
+
+        try:
+            result = urlparse(v)
+            if not all([result.scheme, result.netloc]):
+                raise ValueError
+        except ValueError:
+            raise ValueError(f'url "{v}" is not valid or is bad formatted.')
