@@ -19,7 +19,7 @@ class ConfirmationModal(ModalScreen[bool]):
             priority=True,
         ),
         Binding(
-            "enter,y",
+            "y",
             "confirm",
             description="confirm",
             priority=True,
@@ -34,16 +34,13 @@ class ConfirmationModal(ModalScreen[bool]):
     ) -> None:
         super().__init__(*args, **kwargs)
 
-        self.message_text = message
+        self.message = message
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(classes="main") as container:
             container.border_title = "confirm"
 
-            yield Static(
-                self.message_text,
-                id="message",
-            )
+            yield Static(self.message, id="message")
             yield Horizontal(
                 Button(
                     "(n)o",
