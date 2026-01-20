@@ -130,6 +130,19 @@ class ContactTable(JoblessTable):
         "applications",
     ]
 
+    BINDINGS = [
+        Binding(
+            "n",
+            "new",
+            description="new contact",
+            tooltip="launches modal screen to add new contact",
+        ),
+    ] + JoblessTable.BINDINGS
+
+    class AddContact(Message):
+        def __init__(self) -> None:
+            super().__init__()
+
     def item_to_row(self, item: Contact) -> tuple:
         return (
             str(item.id),
@@ -140,3 +153,6 @@ class ContactTable(JoblessTable):
             str(len(item.companies)),
             str(len(item.applications)),
         )
+
+    def action_new(self) -> None:
+        self.post_message(self.AddContact())

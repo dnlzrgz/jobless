@@ -7,8 +7,9 @@ from textual.widgets import Footer
 
 from jobless.constants import APP_NAME
 from jobless.db import get_engine, get_session, init_db
+from jobless.models import Contact
 from jobless.settings import Settings
-from jobless.widgets.confirmation import ConfirmationModal
+from jobless.widgets.confirmation_modal import ConfirmationModal
 from jobless.widgets.datatables import (
     ApplicationTable,
     CompanyTable,
@@ -16,6 +17,8 @@ from jobless.widgets.datatables import (
     JoblessTable,
 )
 from jobless.widgets.header import AppHeader
+from jobless.widgets.new_modal import NewContactModal
+from jobless.services.contacts import add_contact
 
 
 class JoblessApp(App):
@@ -84,7 +87,7 @@ class JoblessApp(App):
 
     @on(JoblessTable.Delete)
     def delete_item(self, message: JoblessTable.Delete) -> None:
-        def check_confirmation(confirmed: bool | None) -> None:
+        def callback(confirmed: bool | None) -> None:
             if not confirmed:
                 return
 
@@ -111,8 +114,21 @@ class JoblessApp(App):
             ConfirmationModal(
                 message=f'delete "{message.item_name}" from {message.sender.id}?'
             ),
-            callback=check_confirmation,
+            callback=callback,
         )
+
+    @on(ContactTable.AddContact)
+    def add_contact(self) -> None:
+        def callback(contact: Contact | None) -> None:
+            if not contact:
+                return
+
+            with get_session(self.engine) as session:
+                add_contact(session, contact)
+                self.notify(f'new contact "{contact.name}" added')
+            self.reload_tables()
+
+        self.push_screen(NewContactModal(), callback=callback)
 
     @work(thread=True, exclusive=True)
     def reload_tables(self) -> None:

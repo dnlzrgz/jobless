@@ -62,7 +62,8 @@
   }
 }
 
-ConfirmationModal  {
+ConfirmationModal,
+NewContactModal {
   align: center middle;
   background: $background 70%;
   height: 100%;
@@ -87,5 +88,15 @@ ConfirmationModal  {
   Button {
     border: none;
     height: 1;
+  }
+
+  Input {
+    height: 1;
+    border: none;
+  }
+
+  TextArea {
+    height: 5;
+    border: none;
   }
 }
