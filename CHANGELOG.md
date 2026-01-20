@@ -1,3 +1,17 @@
+## 0.7.0 (2026-01-20)
+
+### Feat
+
+- **app**: add modal for creating contacts
+
+### Fix
+
+- **models**: catch validation errors
+
+### Refactor
+
+- **app**: rename file
+
 ## 0.6.0 (2026-01-16)
 
 ### Feat
