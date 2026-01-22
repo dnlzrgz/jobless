@@ -1,0 +1,91 @@
+from datetime import date, datetime
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    ValidationInfo,
+    field_validator,
+)
+
+from jobless.models import Location, Status
+
+
+class SkillSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str = Field(..., min_length=1)
+
+    applications: list[ApplicationSchema] = []
+    companies: list[CompanySchema] = []
+
+    created_at: datetime | None = None
+    last_updated: datetime | None = None
+
+
+class ContactSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int | None = None
+    name: str
+    email: EmailStr | None = None
+    phone: str | None = None
+    url: str | None = None
+    notes: str | None = None
+
+    companies: list[CompanySchema] = []
+    applications: list[ApplicationSchema] = []
+
+    created_at: datetime | None = None
+    last_updated: datetime | None = None
+
+
+class CompanySchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int | None = None
+    name: str
+    website: str | None = None
+    industry: str | None = None
+    notes: str | None = None
+
+    applications: list[ApplicationSchema] = []
+    skills: list[SkillSchema] = []
+    contacts: list[ContactSchema] = []
+
+    created_at: datetime | None = None
+    last_updated: datetime | None = None
+
+
+class ApplicationSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int | None = None
+    title: str
+    description: str | None = None
+    salary_range: str | None = None
+    platform: str | None = None
+    url: str | None = None
+    address: str | None = None
+    location_type: Location | None = None
+    status: Status = Status.SAVED
+    priority: int = Field(default=0, ge=0, le=4)
+    date_applied: date | None = None
+    follow_up_date: date | None = None
+    notes: str | None = None
+
+    company: CompanySchema | None = None
+    skills: list[SkillSchema] = []
+    contacts: list[ContactSchema] = []
+
+    created_at: datetime | None = None
+    last_updated: datetime | None = None
+
+    @field_validator("follow_up_date")
+    @classmethod
+    def validate_correct_follow_up(cls, v: date, info: ValidationInfo):
+        if v and info.data.get("date_applied") and v < info.data["date_applied"]:
+            raise ValueError("Follow up date cannot be before application date.")
+
+        return v

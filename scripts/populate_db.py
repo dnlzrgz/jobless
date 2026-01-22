@@ -17,7 +17,7 @@ except ImportError:
     sys.exit(1)
 
 fake = Faker()
-tech_skills = {
+TECH_SKILLS = {
     "Python",
     "Rust",
     "SQL",
@@ -30,65 +30,64 @@ tech_skills = {
     "CSS",
     "Tailwind CSS",
 }
-settings = Settings()
+SETTINGS = Settings()
 
 
 def is_empty(session: Session) -> bool:
     statement = select(func.count()).select_from(Company)
-    count = session.scalar(statement)
-    return count == 0
+    return session.scalar(statement) == 0
 
 
 def seed_data():
     start_time = time.perf_counter()
 
-    engine = get_engine(db_url=settings.db_url)
+    engine = get_engine(db_url=SETTINGS.db_url)
     init_db(engine)
 
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    SessionLocal = sessionmaker(bind=engine)
 
     with SessionLocal() as session:
         if not is_empty(session):
-            print(f"❌ The database at {settings.db_url} is not empty.")
-            print("Please delete the database file or clear the tables before seeding.")
             sys.exit(1)
 
-        print(f"✨ Starting seed process for: {settings.db_url}")
+        print(f"✨ Starting seed for: {SETTINGS.db_url}")
 
-        print("🌱 Generating contacts...")
+        print("🌱 Adding skills...")
+        skills = [Skill(name=name) for name in TECH_SKILLS]
+        session.add_all(skills)
+
+        print("🌱 Adding contacts...")
         contacts = [
             Contact(
                 name=fake.name(),
-                email=fake.email(),
+                email=fake.unique.email(),
                 phone=fake.phone_number(),
                 url=fake.url(),
-                notes=fake.sentence() if randint(0, 1) else None,
             )
             for _ in range(randint(10, 50))
         ]
         session.add_all(contacts)
+        session.flush()
 
-        print("🌱 Making up skills...")
-        skills = [Skill(name=name) for name in tech_skills]
-        session.add_all(skills)
-
-        print("🌱 Building up companies...")
+        print("🌱 Adding companies...")
         companies = [
             Company(
                 name=fake.unique.company(),
                 website=fake.url(),
                 industry=fake.bs(),
-                notes=fake.sentence() if randint(0, 1) else None,
-                skills=sample(skills, randint(2, 5)),
-                contacts=sample(contacts, randint(1, 3)),
+                skills=sample(skills, randint(2, 4)),
+                contacts=sample(contacts, randint(1, 2)),
             )
             for _ in range(randint(10, 50))
         ]
         session.add_all(companies)
+        session.flush()
 
         print("🌱 Adding applications...")
-        applications = [
-            Application(
+        applications = []
+        for _ in range(randint(100, 200)):
+            applied = fake.date_between(start_date="-1y", end_date="today")
+            application = Application(
                 title=fake.job(),
                 description=fake.paragraph(),
                 salary_range=f"${randint(20, 50)}k - ${randint(110, 200)}k",
@@ -97,23 +96,20 @@ def seed_data():
                 location_type=choice(list(Location)),
                 status=choice(list(Status)),
                 priority=randint(0, 4),
-                date_applied=fake.date_between(start_date="-1y", end_date="today"),
-                notes=fake.sentence() if randint(0, 1) else None,
+                date_applied=applied,
+                follow_up_date=applied if randint(0, 1) else None,
                 company=choice(companies),
-                skills=sample(skills, randint(2, 5)),
-                contacts=sample(contacts, randint(1, 3)),
+                skills=sample(skills, randint(2, 3)),
+                contacts=sample(contacts, 1),
             )
-            for _ in range(randint(100, 200))
-        ]
+            applications.append(application)
 
         session.add_all(applications)
 
-        print("💾 Committing transaction...")
+        print("💾 Finalizing transaction...")
         session.commit()
 
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
-    print(f"✅ Successfully seeded database in {elapsed_time:.4f} seconds.")
+    print(f"✅ Seeded in {time.perf_counter() - start_time:.2f}s")
 
 
 if __name__ == "__main__":
