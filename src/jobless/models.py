@@ -1,9 +1,17 @@
-from datetime import date, datetime, timezone
-from urllib.parse import urlparse
+from datetime import date, datetime
 from enum import StrEnum
 
-from pydantic import EmailStr, field_validator
-from sqlmodel import Field, Relationship, SQLModel, func
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, func
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+)
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 class Status(StrEnum):
@@ -21,188 +29,167 @@ class Location(StrEnum):
     ON_SITE = "On-site"
 
 
-class CompanySkillLink(SQLModel, table=True):
-    company_id: int | None = Field(
-        default=None,
-        foreign_key="company.id",
+company_skill_link = Table(
+    "company_skill_link",
+    Base.metadata,
+    Column(
+        "company_id",
+        ForeignKey("companies.id", ondelete="CASCADE"),
         primary_key=True,
-    )
-    skill_id: int | None = Field(
-        default=None,
-        foreign_key="skill.id",
+    ),
+    Column(
+        "skill_name",
+        ForeignKey("skills.name", ondelete="CASCADE"),
         primary_key=True,
-    )
+    ),
+)
 
-
-class ApplicationSkillLink(SQLModel, table=True):
-    application_id: int | None = Field(
-        default=None,
-        foreign_key="application.id",
+application_skill_link = Table(
+    "application_skill_link",
+    Base.metadata,
+    Column(
+        "application_id",
+        ForeignKey("applications.id", ondelete="CASCADE"),
         primary_key=True,
-    )
-    skill_id: int | None = Field(
-        default=None,
-        foreign_key="skill.id",
+    ),
+    Column(
+        "skill_name",
+        ForeignKey("skills.name", ondelete="CASCADE"),
         primary_key=True,
-    )
+    ),
+)
 
-
-class CompanyContactLink(SQLModel, table=True):
-    company_id: int | None = Field(
-        default=None,
-        foreign_key="company.id",
+company_contact_link = Table(
+    "company_contact_link",
+    Base.metadata,
+    Column(
+        "company_id",
+        ForeignKey("companies.id", ondelete="CASCADE"),
         primary_key=True,
-    )
-    contact_id: int | None = Field(
-        default=None,
-        foreign_key="contact.id",
+    ),
+    Column(
+        "contact_id",
+        ForeignKey("contacts.id", ondelete="CASCADE"),
         primary_key=True,
-    )
+    ),
+)
 
-
-class ApplicationContactLink(SQLModel, table=True):
-    application_id: int | None = Field(
-        default=None,
-        foreign_key="application.id",
+application_contact_link = Table(
+    "application_contact_link",
+    Base.metadata,
+    Column(
+        "application_id",
+        ForeignKey("applications.id", ondelete="CASCADE"),
         primary_key=True,
-    )
-    contact_id: int | None = Field(
-        default=None,
-        foreign_key="contact.id",
+    ),
+    Column(
+        "contact_id",
+        ForeignKey("contacts.id", ondelete="CASCADE"),
         primary_key=True,
+    ),
+)
+
+
+class TimestampMixin:
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=func.now(),
+    )
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=func.now(),
+        onupdate=func.now(),
     )
 
 
-class Base(SQLModel):
-    id: int | None = Field(default=None, primary_key=True)
+class Company(Base, TimestampMixin):
+    __tablename__ = "companies"
 
-    created_at: datetime = Field(default=datetime.now(timezone.utc))
-    last_updated: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column_kwargs={"onupdate": func.now()},
-    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, index=True, unique=True)
+    website: Mapped[str | None] = mapped_column(String)
+    industry: Mapped[str | None] = mapped_column(String)
 
-    class Config:
-        validate_assignment = True
+    notes: Mapped[str | None] = mapped_column(String)
 
-
-class Company(Base, table=True):
-    name: str = Field(index=True, unique=True)
-    website: str | None = None
-    industry: str | None = None
-
-    notes: str | None = None
-
-    applications: list[Application] = Relationship(
+    applications: Mapped[list[Application]] = relationship(
         back_populates="company",
-        cascade_delete=True,
+        cascade="all, delete",
     )
-    skills: list[Skill] = Relationship(
+    skills: Mapped[list[Skill]] = relationship(
         back_populates="companies",
-        link_model=CompanySkillLink,
+        secondary=company_skill_link,
     )
-    contacts: list[Contact] = Relationship(
+    contacts: Mapped[list[Contact]] = relationship(
         back_populates="companies",
-        link_model=CompanyContactLink,
+        secondary=company_contact_link,
     )
 
 
-class Application(Base, table=True):
-    title: str = Field(index=True)
-    description: str | None = None
-    salary_range: str | None = None
+class Application(Base, TimestampMixin):
+    __tablename__ = "applications"
 
-    platform: str | None = None
-    url: str | None = None
-    address: str | None = None
-    location_type: Location | None = None
-    status: Status = Field(default=Status.SAVED, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String, index=True)
+    description: Mapped[str | None] = mapped_column(String)
+    salary_range: Mapped[str | None] = mapped_column(String)
 
-    priority: int = Field(default=0, ge=0, le=4)
+    platform: Mapped[str | None] = mapped_column(String)
+    url: Mapped[str | None] = mapped_column(String)
+    address: Mapped[str | None] = mapped_column(String)
+    location_type: Mapped[Location | None] = mapped_column(String)
+    status: Mapped[Status] = mapped_column(String, default=Status.SAVED, index=True)
+    priority: Mapped[int] = mapped_column(Integer, default=0)
 
-    date_applied: date | None = None
-    follow_up_date: date | None = None
+    date_applied: Mapped[date | None] = mapped_column()
+    follow_up_date: Mapped[date | None] = mapped_column()
 
-    notes: str | None = None
+    notes: Mapped[str | None] = mapped_column(String)
 
-    company_id: int | None = Field(
-        default=None,
-        foreign_key="company.id",
-        ondelete="CASCADE",
-    )
-    company: Company | None = Relationship(
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    company: Mapped[Company] = relationship(back_populates="applications")
+
+    contacts: Mapped[list[Contact]] = relationship(
         back_populates="applications",
+        secondary=application_contact_link,
     )
-    entries: list[Entry] = Relationship(
-        back_populates="application",
-        cascade_delete=True,
-    )
-    skills: list[Skill] = Relationship(
+    skills: Mapped[list[Skill]] = relationship(
         back_populates="applications",
-        link_model=ApplicationSkillLink,
-    )
-    contacts: list[Contact] = Relationship(
-        back_populates="applications",
-        link_model=ApplicationContactLink,
-    )
-
-    @property
-    def company_name(self) -> str:
-        return self.company.name
-
-
-class Entry(Base, table=True):
-    content: str
-
-    application_id: int | None = Field(
-        default=None,
-        foreign_key="application.id",
-        ondelete="CASCADE",
-    )
-    application: Application | None = Relationship(
-        back_populates="entries",
+        secondary=application_skill_link,
     )
 
 
-class Skill(Base, table=True):
-    name: str = Field(index=True, unique=True)
+class Skill(Base, TimestampMixin):
+    __tablename__ = "skills"
 
-    companies: list[Company] = Relationship(
+    name: Mapped[str] = mapped_column(String, primary_key=True)
+
+    companies: Mapped[list[Company]] = relationship(
         back_populates="skills",
-        link_model=CompanySkillLink,
+        secondary=company_skill_link,
     )
-    applications: list[Application] = Relationship(
+    applications: Mapped[list[Application]] = relationship(
         back_populates="skills",
-        link_model=ApplicationSkillLink,
+        secondary=application_skill_link,
     )
 
 
-class Contact(Base, table=True):
-    name: str = Field(index=True, min_length=1)
-    email: EmailStr | None = None
-    phone: str | None = None
-    url: str | None = None
+class Contact(Base, TimestampMixin):
+    __tablename__ = "contacts"
 
-    notes: str | None = None
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, index=True)
+    email: Mapped[str | None] = mapped_column(String, index=True, unique=True)
+    phone: Mapped[str | None] = mapped_column(String)
+    url: Mapped[str | None] = mapped_column(String)
 
-    companies: list[Company] = Relationship(
+    notes: Mapped[str | None] = mapped_column(String)
+
+    companies: Mapped[list[Company]] = relationship(
         back_populates="contacts",
-        link_model=CompanyContactLink,
+        secondary=company_contact_link,
     )
-    applications: list[Application] = Relationship(
+    applications: Mapped[list[Application]] = relationship(
         back_populates="contacts",
-        link_model=ApplicationContactLink,
+        secondary=application_contact_link,
     )
-
-    @field_validator("url")
-    @classmethod
-    def validate_url(cls, v: str | None) -> str | None:
-        if not v:
-            return
-
-        try:
-            result = urlparse(v)
-            if not all([result.scheme, result.netloc]):
-                raise ValueError
-        except ValueError:
-            raise ValueError(f'url "{v}" is not valid or is bad formatted.')

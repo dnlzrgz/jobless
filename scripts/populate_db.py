@@ -1,12 +1,13 @@
 import sys
 import time
-from random import randint, sample, choice
+from random import choice, randint, sample
 
-from sqlmodel import Session, func, select
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, sessionmaker
 
 from jobless.db import get_engine, init_db
+from jobless.models import Application, Company, Contact, Location, Skill, Status
 from jobless.settings import Settings
-from jobless.models import Company, Application, Skill, Contact, Location, Status
 
 try:
     from faker import Faker
@@ -34,7 +35,7 @@ settings = Settings()
 
 def is_empty(session: Session) -> bool:
     statement = select(func.count()).select_from(Company)
-    count = session.exec(statement).first()
+    count = session.scalar(statement)
     return count == 0
 
 
@@ -44,13 +45,16 @@ def seed_data():
     engine = get_engine(db_url=settings.db_url)
     init_db(engine)
 
-    with Session(engine) as session:
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    with SessionLocal() as session:
         if not is_empty(session):
             print(f"❌ The database at {settings.db_url} is not empty.")
             print("Please delete the database file or clear the tables before seeding.")
             sys.exit(1)
 
         print(f"✨ Starting seed process for: {settings.db_url}")
+
         print("🌱 Generating contacts...")
         contacts = [
             Contact(
@@ -58,13 +62,15 @@ def seed_data():
                 email=fake.email(),
                 phone=fake.phone_number(),
                 url=fake.url(),
-                notes=fake.sentence(),
+                notes=fake.sentence() if randint(0, 1) else None,
             )
             for _ in range(randint(10, 50))
         ]
+        session.add_all(contacts)
 
         print("🌱 Making up skills...")
         skills = [Skill(name=name) for name in tech_skills]
+        session.add_all(skills)
 
         print("🌱 Building up companies...")
         companies = [
@@ -72,12 +78,13 @@ def seed_data():
                 name=fake.unique.company(),
                 website=fake.url(),
                 industry=fake.bs(),
-                notes=fake.catch_phrase(),
+                notes=fake.sentence() if randint(0, 1) else None,
                 skills=sample(skills, randint(2, 5)),
                 contacts=sample(contacts, randint(1, 3)),
             )
             for _ in range(randint(10, 50))
         ]
+        session.add_all(companies)
 
         print("🌱 Adding applications...")
         applications = [
@@ -91,6 +98,7 @@ def seed_data():
                 status=choice(list(Status)),
                 priority=randint(0, 4),
                 date_applied=fake.date_between(start_date="-1y", end_date="today"),
+                notes=fake.sentence() if randint(0, 1) else None,
                 company=choice(companies),
                 skills=sample(skills, randint(2, 5)),
                 contacts=sample(contacts, randint(1, 3)),
@@ -98,9 +106,6 @@ def seed_data():
             for _ in range(randint(100, 200))
         ]
 
-        session.add_all(contacts)
-        session.add_all(skills)
-        session.add_all(companies)
         session.add_all(applications)
 
         print("💾 Committing transaction...")

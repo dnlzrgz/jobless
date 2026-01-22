@@ -1,10 +1,6 @@
-from contextlib import contextmanager
-from typing import Generator
+from sqlalchemy import create_engine, event
 
-from sqlalchemy import event
-from sqlmodel import Session, SQLModel, create_engine
-
-from jobless import models  # noqa: F401
+from jobless.models import Base
 
 
 def set_sqlite_pragmas(dbapi_connection, connection_record):
@@ -32,27 +28,12 @@ def get_engine(db_url: str, connect_args: dict | None = None):
     )
 
     event.listen(engine, "connect", set_sqlite_pragmas)
-
     return engine
 
 
 def init_db(engine) -> None:
     """
-    Initializes all tables.
+    Initializes all tables defined in the Base.
     """
 
-    SQLModel.metadata.create_all(engine)
-
-
-@contextmanager
-def get_session(engine) -> Generator[Session, None, None]:
-    session = Session(engine)
-
-    try:
-        yield session
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        raise e
-    finally:
-        session.close()
+    Base.metadata.create_all(engine)
