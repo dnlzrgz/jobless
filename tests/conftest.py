@@ -1,5 +1,5 @@
 import pytest
-from sqlmodel import Session
+from sqlalchemy.orm import sessionmaker
 
 from jobless.db import get_engine, init_db
 
@@ -9,5 +9,6 @@ def session():
     engine = get_engine(db_url="sqlite:///:memory:")
     init_db(engine)
 
-    with Session(engine) as session:
+    SessionLocal = sessionmaker(bind=engine)
+    with SessionLocal() as session:
         yield session
