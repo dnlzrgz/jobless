@@ -1,4 +1,4 @@
-from sqlmodel import select
+from sqlalchemy.orm import sessionmaker
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -6,19 +6,20 @@ from textual.containers import ScrollableContainer
 from textual.widgets import Footer
 
 from jobless.constants import APP_NAME
-from jobless.db import get_engine, get_session, init_db
-from jobless.models import Contact
+from jobless.db import get_engine, init_db
+from jobless.repositories import (
+    ApplicationRepository,
+    CompanyRepository,
+    ContactRepository,
+)
 from jobless.settings import Settings
-from jobless.widgets.confirmation_modal import ConfirmationModal
 from jobless.widgets.datatables import (
     ApplicationTable,
     CompanyTable,
     ContactTable,
-    JoblessTable,
 )
 from jobless.widgets.header import AppHeader
-from jobless.widgets.new_modal import NewContactModal
-from jobless.services.contacts import add_contact
+from jobless.widgets.modals.confirmation_modal import ConfirmationModal
 
 
 class JoblessApp(App):
@@ -56,28 +57,30 @@ class JoblessApp(App):
         yield AppHeader()
 
         with ScrollableContainer(classes="main"):
-            self.company_table = CompanyTable(
+            self.companies_table = CompanyTable(
                 id="companies",
                 classes="table companies",
             )
-            yield self.company_table
+            yield self.companies_table
 
-            self.application_table = ApplicationTable(
+            self.applications_table = ApplicationTable(
                 id="applications",
                 classes="table applications",
             )
-            yield self.application_table
+            yield self.applications_table
 
-            self.contact_table = ContactTable(
+            self.contacts_table = ContactTable(
                 id="contacts",
                 classes="table contacts",
             )
-            yield self.contact_table
+            yield self.contacts_table
 
         yield Footer()
 
     def on_mount(self) -> None:
         init_db(self.engine)
+
+        self.SessionLocal = sessionmaker(bind=self.engine)
 
         self.theme = self.settings.theme
         self.reload_tables()
@@ -85,63 +88,105 @@ class JoblessApp(App):
     def action_reload(self) -> None:
         self.reload_tables()
 
-    @on(JoblessTable.Delete)
-    def delete_item(self, message: JoblessTable.Delete) -> None:
+    @on(CompanyTable.Delete)
+    def delete_company(self, message: CompanyTable.Delete) -> None:
         def callback(confirmed: bool | None) -> None:
             if not confirmed:
                 return
 
-            with get_session(self.engine) as session:
-                model = message.sender.MODEL
-                instance = session.exec(
-                    select(model).where(model.id == message.item_id)
-                ).first()
-                if not instance:
-                    self.notify(
-                        f'error finding item "{message.item_name}" in {message.sender.id}',
-                        severity="error",
-                    )
-                    return
-
-                session.delete(instance)
+            with self.SessionLocal() as session:
+                company_repo = CompanyRepository(session)
+                company_repo.delete(message.id)
                 session.commit()
-
-                self.notify(f'deleted "{message.item_name}" from {message.sender.id}')
 
             self.reload_tables()
 
         self.push_screen(
-            ConfirmationModal(
-                message=f'delete "{message.item_name}" from {message.sender.id}?'
-            ),
+            ConfirmationModal(message=f'delete "{message.name}" from companies?'),
             callback=callback,
         )
 
-    @on(ContactTable.AddContact)
-    def add_contact(self) -> None:
-        def callback(contact: Contact | None) -> None:
-            if not contact:
+    @on(ApplicationTable.Delete)
+    def delete_application(self, message: ApplicationTable.Delete) -> None:
+        def callback(confirmed: bool | None) -> None:
+            if not confirmed:
                 return
 
-            with get_session(self.engine) as session:
-                add_contact(session, contact)
-                self.notify(f'new contact "{contact.name}" added')
+            with self.SessionLocal() as session:
+                application_repo = ApplicationRepository(session)
+                application_repo.delete(message.id)
+                session.commit()
+
             self.reload_tables()
 
-        self.push_screen(NewContactModal(), callback=callback)
+        self.push_screen(
+            ConfirmationModal(message=f'delete "{message.name}" from applications?'),
+            callback=callback,
+        )
+
+    @on(ContactTable.Delete)
+    def delete_contact(self, message: ContactTable.Delete) -> None:
+        def callback(confirmed: bool | None) -> None:
+            if not confirmed:
+                return
+
+            with self.SessionLocal() as session:
+                contact_repo = ContactRepository(session)
+                contact_repo.delete(message.id)
+                session.commit()
+
+            self.reload_tables()
+
+        self.push_screen(
+            ConfirmationModal(message=f'delete "{message.name}" from contacts?'),
+            callback=callback,
+        )
+
+    def add_contact(self) -> None:
+        # def callback(contact: Contact | None) -> None:
+        #     if not contact:
+        #         return
+        #
+        #     with get_session(self.engine) as session:
+        #         add_contact(session, contact)
+        #         self.notify(f'new contact "{contact.name}" added')
+        #     self.reload_tables()
+        #
+        # self.push_screen(NewContactModal(), callback=callback)
+        pass
 
     @work(thread=True, exclusive=True)
     def reload_tables(self) -> None:
-        tables = [self.application_table, self.company_table, self.contact_table]
-        for table in tables:
-            self.call_from_thread(setattr, table, "loading", True)
+        self.call_from_thread(setattr, self.applications_table, "loading", True)
+        self.call_from_thread(setattr, self.companies_table, "loading", True)
+        self.call_from_thread(setattr, self.contacts_table, "loading", True)
 
-        with get_session(self.engine) as session:
-            for table in tables:
-                results = session.exec(select(table.MODEL)).all()
-                rows = [table.item_to_row(item) for item in results]
+        with self.SessionLocal() as session:
+            application_repo = ApplicationRepository(session)
+            company_repo = CompanyRepository(session)
+            contact_repo = ContactRepository(session)
 
-                self.call_from_thread(table.reload, rows)
+            self.call_from_thread(
+                self.applications_table.reload,
+                [
+                    self.applications_table.item_to_row(application)
+                    for application in application_repo.get_all()
+                ],
+            )
+            self.call_from_thread(
+                self.companies_table.reload,
+                [
+                    self.companies_table.item_to_row(company)
+                    for company in company_repo.get_all()
+                ],
+            )
+            self.call_from_thread(
+                self.contacts_table.reload,
+                [
+                    self.contacts_table.item_to_row(contact)
+                    for contact in contact_repo.get_all()
+                ],
+            )
 
 
 if __name__ == "__main__":

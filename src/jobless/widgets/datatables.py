@@ -13,32 +13,37 @@ T = TypeVar("T", bound=Base)
 class JoblessTable(DataTable, Generic[T]):
     MODEL: Type[T]
     COLUMNS: list[str]
+    LABEL: str
+    PLURAL: str | None = None
 
     BINDINGS = [
         Binding(
             "backspace,delete",
             "delete",
             description="delete",
-            tooltip="delete current selected item",
+        ),
+        Binding(
+            "n",
+            "new",
+            description="new contact",
         ),
     ] + DataTable.BINDINGS
 
     class Delete(Message):
         def __init__(
             self,
-            sender: "JoblessTable",
-            item_id: int,
-            item_name: str,
+            id: int,
+            name: str,
         ) -> None:
-            self.sender = sender
-            self.item_id = item_id
-            self.item_name = item_name
+            self.id = id
+            self.name = name
+
             super().__init__()
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.border_title = self.id
+        self.border_title = self.PLURAL or f"{self.LABEL}s"
         self.cursor_type = "row"
         self.zebra_stripes = True
 
@@ -55,6 +60,7 @@ class JoblessTable(DataTable, Generic[T]):
         self.clear()
         self.add_rows(rows)
         self.border_subtitle = f"{len(rows)}"
+
         self.loading = False
 
     def action_delete(self) -> None:
@@ -63,7 +69,7 @@ class JoblessTable(DataTable, Generic[T]):
             item_id = int(row_data[0])
             item_name = str(row_data[1])
 
-            self.post_message(self.Delete(self, item_id, item_name))
+            self.post_message(self.Delete(item_id, item_name))
 
 
 class CompanyTable(JoblessTable):
@@ -77,6 +83,11 @@ class CompanyTable(JoblessTable):
         "contacts",
         "skills",
     ]
+    LABEL = "company"
+    PLURAL = "companies"
+
+    class Delete(JoblessTable.Delete):
+        pass
 
     def item_to_row(self, item: Company) -> tuple:
         return (
@@ -103,13 +114,17 @@ class ApplicationTable(JoblessTable):
         "applied at",
         "last update at",
     ]
+    LABEL = "application"
+
+    class Delete(JoblessTable.Delete):
+        pass
 
     def item_to_row(self, item: Application) -> tuple:
         return (
             str(item.id),
             item.title,
-            item.company_name,
-            item.status.value,
+            item.company.name,
+            item.status,
             str(item.priority),
             str(len(item.contacts)),
             ", ".join(skill.name for skill in item.skills),
@@ -129,19 +144,10 @@ class ContactTable(JoblessTable):
         "companies",
         "applications",
     ]
+    LABEL = "contact"
 
-    BINDINGS = [
-        Binding(
-            "n",
-            "new",
-            description="new contact",
-            tooltip="launches modal screen to add new contact",
-        ),
-    ] + JoblessTable.BINDINGS
-
-    class AddContact(Message):
-        def __init__(self) -> None:
-            super().__init__()
+    class Delete(JoblessTable.Delete):
+        pass
 
     def item_to_row(self, item: Contact) -> tuple:
         return (
@@ -153,6 +159,3 @@ class ContactTable(JoblessTable):
             str(len(item.companies)),
             str(len(item.applications)),
         )
-
-    def action_new(self) -> None:
-        self.post_message(self.AddContact())

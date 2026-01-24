@@ -13,6 +13,17 @@
   }
 }
 
+Button,
+Input {
+  border: none;
+  height: 1;
+}
+
+TextArea {
+  height: 5;
+  border: none;
+}
+
 .header {
   height: 1;
   margin: 1;
@@ -62,13 +73,12 @@
   }
 }
 
-ConfirmationModal,
-NewContactModal {
+ConfirmationModal {
   align: center middle;
   background: $background 70%;
   height: 100%;
 
-  .main {
+  .form {
     align: center middle;
     border: round $accent;
     height: auto;
@@ -84,19 +94,4 @@ NewContactModal {
       width: 1fr;
     }
   }
-
-  Button {
-    border: none;
-    height: 1;
-  }
-
-  Input {
-    height: 1;
-    border: none;
-  }
-
-  TextArea {
-    height: 5;
-    border: none;
-  }
-}
+ }
