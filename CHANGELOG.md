@@ -1,3 +1,15 @@
+## 0.8.0 (2026-01-24)
+
+### Feat
+
+- **db**: add pydantic schemas for validation
+
+### Refactor
+
+- **app**: apply repositories
+- **db**: remove sqlmodel in favor of sqlalchemy
+- **db**: remove services in favor of repositories
+
 ## 0.7.0 (2026-01-20)
 
 ### Feat
