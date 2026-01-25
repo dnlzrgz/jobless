@@ -50,7 +50,6 @@ class CompanyRepository(GenericRepository[Company]):
             .where(Company.id == id)
             .options(
                 selectinload(Company.applications),
-                selectinload(Company.skills),
                 selectinload(Company.contacts),
             )
         )
@@ -68,11 +67,6 @@ class CompanyRepository(GenericRepository[Company]):
         )
         result = self.session.scalars(statement).first()
         return result
-
-    def get_by_skill(self, skill: str) -> list[Company]:
-        statement = select(Company).join(Company.skills).where(Skill.name == skill)
-        results = self.session.scalars(statement).all()
-        return list(results)
 
     def get_by_contact(self, contact_id: int) -> list[Company]:
         statement = (
@@ -144,7 +138,6 @@ class SkillRepository(GenericRepository[Skill]):
             .where(Skill.name == id)
             .options(
                 selectinload(Skill.applications),
-                selectinload(Skill.companies),
             )
         )
         result = self.session.scalars(statement).one_or_none()
@@ -152,11 +145,6 @@ class SkillRepository(GenericRepository[Skill]):
 
     def get_by_name(self, name: str) -> Skill | None:
         return self.get_by_id(name)
-
-    def get_by_company(self, company_id: int) -> list[Skill]:
-        statement = select(Skill).join(Skill.companies).where(Company.id == company_id)
-        results = self.session.scalars(statement).all()
-        return list(results)
 
     def get_by_application(self, application_id: int) -> list[Skill]:
         statement = (

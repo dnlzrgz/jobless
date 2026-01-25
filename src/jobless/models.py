@@ -29,21 +29,6 @@ class Location(StrEnum):
     ON_SITE = "On-site"
 
 
-company_skill_link = Table(
-    "company_skill_link",
-    Base.metadata,
-    Column(
-        "company_id",
-        ForeignKey("companies.id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-    Column(
-        "skill_name",
-        ForeignKey("skills.name", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-)
-
 application_skill_link = Table(
     "application_skill_link",
     Base.metadata,
@@ -116,10 +101,6 @@ class Company(Base, TimestampMixin):
         back_populates="company",
         cascade="all, delete",
     )
-    skills: Mapped[list[Skill]] = relationship(
-        back_populates="companies",
-        secondary=company_skill_link,
-    )
     contacts: Mapped[list[Contact]] = relationship(
         back_populates="companies",
         secondary=company_contact_link,
@@ -164,10 +145,6 @@ class Skill(Base, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String, primary_key=True)
 
-    companies: Mapped[list[Company]] = relationship(
-        back_populates="skills",
-        secondary=company_skill_link,
-    )
     applications: Mapped[list[Application]] = relationship(
         back_populates="skills",
         secondary=application_skill_link,

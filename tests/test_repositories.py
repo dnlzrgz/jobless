@@ -97,23 +97,26 @@ def test_get_applications_by_status(session):
     assert applied_only[0].title == "Job A"
 
 
-def test_get_company_by_skill(session):
-    company_repo = CompanyRepository(session)
-    skill_repo = SkillRepository(session)
+def test_get_application_by_skill(session):
+    application_repo = ApplicationRepository(session)
 
-    skill = Skill(
-        name="Python",
-    )
-    skill_repo.add(skill)
-
-    company = Company(name=fake.company(), skills=[skill])
-    company_repo.add(company)
+    skill = Skill(name="Python")
+    company = Company(name=fake.company())
+    session.add_all([skill, company])
     session.flush()
 
-    results = company_repo.get_by_skill(skill.name)
+    application = Application(
+        title=fake.job(),
+        company_id=company.id,
+        skills=[skill],
+    )
+    application_repo.add(application)
+    session.commit()
+
+    results = application_repo.get_by_skill(skill.name)
     assert results
     assert len(results) == 1
-    assert results[0].name == company.name
+    assert results[0].title == application.title
 
 
 def test_get_all_emails_from_contacts(session):

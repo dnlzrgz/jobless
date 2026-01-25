@@ -75,7 +75,6 @@ def seed_data():
                 name=fake.unique.company(),
                 website=fake.url(),
                 industry=fake.bs(),
-                skills=sample(skills, randint(2, 4)),
                 contacts=sample(contacts, randint(1, 2)),
             )
             for _ in range(randint(10, 50))

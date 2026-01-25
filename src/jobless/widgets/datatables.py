@@ -24,10 +24,13 @@ class JoblessTable(DataTable, Generic[T]):
         ),
         Binding(
             "n",
-            "new",
-            description="new contact",
+            "create",
+            description="new",
         ),
     ] + DataTable.BINDINGS
+
+    class Create(Message):
+        pass
 
     class Delete(Message):
         def __init__(
@@ -71,6 +74,9 @@ class JoblessTable(DataTable, Generic[T]):
 
             self.post_message(self.Delete(item_id, item_name))
 
+    def action_create(self) -> None:
+        self.post_message(self.Create())
+
 
 class CompanyTable(JoblessTable):
     MODEL = Company
@@ -81,10 +87,12 @@ class CompanyTable(JoblessTable):
         "industry",
         "applications",
         "contacts",
-        "skills",
     ]
     LABEL = "company"
     PLURAL = "companies"
+
+    class Create(JoblessTable.Create):
+        pass
 
     class Delete(JoblessTable.Delete):
         pass
@@ -97,7 +105,6 @@ class CompanyTable(JoblessTable):
             item.industry if item.industry else "N/A",
             str(len(item.applications)),
             str(len(item.contacts)),
-            ", ".join(skill.name for skill in item.skills),
         )
 
 
@@ -115,6 +122,9 @@ class ApplicationTable(JoblessTable):
         "last update at",
     ]
     LABEL = "application"
+
+    class Create(JoblessTable.Create):
+        pass
 
     class Delete(JoblessTable.Delete):
         pass
@@ -145,6 +155,9 @@ class ContactTable(JoblessTable):
         "applications",
     ]
     LABEL = "contact"
+
+    class Create(JoblessTable.Create):
+        pass
 
     class Delete(JoblessTable.Delete):
         pass

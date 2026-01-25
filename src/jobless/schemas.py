@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 
 from pydantic import (
     BaseModel,
@@ -18,16 +18,11 @@ class SkillSchema(BaseModel):
     name: str = Field(..., min_length=1)
 
     applications: list[ApplicationSchema] = []
-    companies: list[CompanySchema] = []
-
-    created_at: datetime | None = None
-    last_updated: datetime | None = None
 
 
 class ContactSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int | None = None
     name: str
     email: EmailStr | None = None
     phone: str | None = None
@@ -37,31 +32,22 @@ class ContactSchema(BaseModel):
     companies: list[CompanySchema] = []
     applications: list[ApplicationSchema] = []
 
-    created_at: datetime | None = None
-    last_updated: datetime | None = None
-
 
 class CompanySchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int | None = None
     name: str
     website: str | None = None
     industry: str | None = None
     notes: str | None = None
 
     applications: list[ApplicationSchema] = []
-    skills: list[SkillSchema] = []
     contacts: list[ContactSchema] = []
-
-    created_at: datetime | None = None
-    last_updated: datetime | None = None
 
 
 class ApplicationSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int | None = None
     title: str
     description: str | None = None
     salary_range: str | None = None
@@ -78,9 +64,6 @@ class ApplicationSchema(BaseModel):
     company: CompanySchema | None = None
     skills: list[SkillSchema] = []
     contacts: list[ContactSchema] = []
-
-    created_at: datetime | None = None
-    last_updated: datetime | None = None
 
     @field_validator("follow_up_date")
     @classmethod
