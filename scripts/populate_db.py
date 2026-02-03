@@ -18,17 +18,17 @@ except ImportError:
 
 fake = Faker()
 TECH_SKILLS = {
-    "Python",
-    "Rust",
-    "SQL",
-    "Textual",
-    "Docker",
-    "AWS",
-    "FastAPI",
-    "React",
-    "JavaScript",
-    "CSS",
-    "Tailwind CSS",
+    "python",
+    "rust",
+    "sql",
+    "textual",
+    "docker",
+    "aws",
+    "fastapi",
+    "react",
+    "javascript",
+    "css",
+    "tailwind css",
 }
 SETTINGS = Settings()
 
@@ -48,6 +48,7 @@ def seed_data():
 
     with SessionLocal() as session:
         if not is_empty(session):
+            print(f"⚠️  Database {SETTINGS.db_url} is not empty!")
             sys.exit(1)
 
         print(f"✨ Starting seed for: {SETTINGS.db_url}")
