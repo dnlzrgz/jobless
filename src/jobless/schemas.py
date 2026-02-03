@@ -12,7 +12,7 @@ from pydantic import (
 from jobless.models import Location, Status
 
 
-class Base(BaseModel):
+class BaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         str_strip_whitespace=True,
@@ -20,12 +20,12 @@ class Base(BaseModel):
     )
 
 
-class SkillSchema(Base):
+class SkillSchema(BaseSchema):
     name: str = Field(..., min_length=1)
     applications: list[ApplicationSchema] = []
 
 
-class ContactSchema(Base):
+class ContactSchema(BaseSchema):
     name: str = Field(..., min_length=1)
     email: EmailStr | None = None
     phone: str | None = None
@@ -35,7 +35,7 @@ class ContactSchema(Base):
     applications: list[ApplicationSchema] = []
 
 
-class CompanySchema(Base):
+class CompanySchema(BaseSchema):
     name: str = Field(..., min_length=1)
     website: str | None = None
     industry: str | None = None
@@ -44,7 +44,7 @@ class CompanySchema(Base):
     contacts: list[ContactSchema] = []
 
 
-class ApplicationSchema(Base):
+class ApplicationSchema(BaseSchema):
     title: str = Field(..., min_length=1)
     description: str | None = None
     salary_range: str | None = None

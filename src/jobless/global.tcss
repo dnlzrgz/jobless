@@ -19,6 +19,35 @@ Input, {
   height: 1;
 }
 
+Button {
+  padding: 0 1;
+}
+
+Input {
+  &:focus {
+    border-left: thick $accent;
+    padding: 0 1;
+  }
+}
+
+Select {
+  height: 1;
+  border: none;
+  padding: 0;
+
+  SelectCurrent {
+    height: 1;
+    border: none;
+    padding: 0 1;
+    background: $surface;
+  }
+
+  & > SelectOverlay {
+    padding: 0
+    border: none;
+  }
+}
+
 TextArea {
   height: 5;
   border: none;
@@ -64,16 +93,7 @@ BaseFormModal {
     max-width: 80;
     padding: 1 3;
 
-    SelectionList {
-      border: none;
-      height: 5;
-      padding: 0;
-    }
-
-    Select {
-    }
-
-    .buttons {
+   .buttons {
       align: right middle;
       height: auto;
       margin-top: 1;
