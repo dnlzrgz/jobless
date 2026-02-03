@@ -4,8 +4,9 @@ from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
+from textual.css.query import NoMatches
 from textual.screen import ModalScreen
-from textual.widgets import Button
+from textual.widgets import Button, Input
 
 from jobless.models import Base
 
@@ -22,7 +23,6 @@ class BaseFormModal(ModalScreen[T]):
             "escape",
             "dismiss(None)",
             description="cancel",
-            priority=True,
         ),
     ]
 
@@ -45,7 +45,7 @@ class BaseFormModal(ModalScreen[T]):
         """
         yield from []
 
-    def get_result(self) -> T:
+    def get_result(self) -> T | None:
         """
         Override this to return data from the inputs.
         """
@@ -69,6 +69,13 @@ class BaseFormModal(ModalScreen[T]):
                 ),
                 classes="buttons",
             )
+
+    def on_mount(self) -> None:
+        try:
+            first_input = self.query(Input).first()
+            first_input.focus()
+        except NoMatches:
+            return
 
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:

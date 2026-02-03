@@ -22,7 +22,7 @@ class ConfirmationModal(BaseFormModal[bool]):
     def compose_form(self) -> ComposeResult:
         yield Static(self.message, id="message")
 
-    def get_result(self) -> bool:
+    def get_result(self) -> bool | None:
         return True
 
     def action_confirm(self) -> None:

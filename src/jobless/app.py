@@ -7,10 +7,12 @@ from textual.widgets import Footer
 
 from jobless.constants import APP_NAME
 from jobless.db import get_engine, init_db
+from jobless.models import Application, Company, Contact
 from jobless.repositories import (
     ApplicationRepository,
     CompanyRepository,
     ContactRepository,
+    SkillRepository,
 )
 from jobless.settings import Settings
 from jobless.widgets.datatables import (
@@ -20,6 +22,11 @@ from jobless.widgets.datatables import (
 )
 from jobless.widgets.header import AppHeader
 from jobless.widgets.modals.confirmation_modal import ConfirmationModal
+from jobless.widgets.modals.create_modals import (
+    CreateApplicationModal,
+    CreateCompanyModal,
+    CreateContactModal,
+)
 
 
 class JoblessApp(App):
@@ -53,40 +60,101 @@ class JoblessApp(App):
         self.settings: Settings = Settings()
         self.engine = get_engine(self.settings.db_url)
 
+        init_db(self.engine)
+
     def compose(self) -> ComposeResult:
         yield AppHeader()
 
         with ScrollableContainer(classes="main"):
-            self.companies_table = CompanyTable(
-                id="companies",
-                classes="table companies",
-            )
-            yield self.companies_table
-
-            self.applications_table = ApplicationTable(
-                id="applications",
-                classes="table applications",
-            )
-            yield self.applications_table
-
-            self.contacts_table = ContactTable(
-                id="contacts",
-                classes="table contacts",
-            )
-            yield self.contacts_table
+            yield CompanyTable(classes="table")
+            yield ApplicationTable(classes="table")
+            yield ContactTable(classes="table")
 
         yield Footer()
 
     def on_mount(self) -> None:
-        init_db(self.engine)
+        self.theme = self.settings.theme
 
         self.SessionLocal = sessionmaker(bind=self.engine)
 
-        self.theme = self.settings.theme
+        self.companies_table = self.query_one(CompanyTable)
+        self.applications_table = self.query_one(ApplicationTable)
+        self.contacts_table = self.query_one(ContactTable)
+
         self.reload_tables()
 
     def action_reload(self) -> None:
         self.reload_tables()
+
+    @on(CompanyTable.Create)
+    def create_company(self) -> None:
+        with self.SessionLocal() as session:
+            contacts = ContactRepository(session).get_all()
+
+        def callback(company: Company | None) -> None:
+            if not company:
+                return
+
+            with self.SessionLocal() as session:
+                CompanyRepository(session).add(company)
+                session.commit()
+
+            self.reload_tables()
+
+        self.push_screen(
+            CreateCompanyModal(contacts=contacts, title="new company"),
+            callback=callback,
+        )
+
+    @on(ApplicationTable.Create)
+    def create_application(self) -> None:
+        with self.SessionLocal() as session:
+            contacts = ContactRepository(session).get_all()
+            companies = CompanyRepository(session).get_all()
+            skills = SkillRepository(session).get_all()
+
+        def callback(application: Application | None) -> None:
+            if not application:
+                return
+
+            with self.SessionLocal() as session:
+                ApplicationRepository(session).add(application)
+                session.commit()
+
+            self.reload_tables()
+
+        self.push_screen(
+            CreateApplicationModal(
+                contacts=contacts,
+                companies=companies,
+                skills=skills,
+                title="new application",
+            ),
+            callback=callback,
+        )
+
+    @on(ContactTable.Create)
+    def create_contact(self) -> None:
+        with self.SessionLocal() as session:
+            applications = ApplicationRepository(session).get_all()
+            companies = CompanyRepository(session).get_all()
+
+        def callback(contact: Contact | None) -> None:
+            if not contact:
+                return
+
+            with self.SessionLocal() as session:
+                ContactRepository(session).add(contact)
+                session.commit()
+
+            self.reload_tables()
+
+        self.push_screen(
+            CreateContactModal(
+                companies=companies, applications=applications, title="new contact"
+            ),
+            callback=callback,
+        )
 
     @on(CompanyTable.Delete)
     def delete_company(self, message: CompanyTable.Delete) -> None:
@@ -95,8 +163,7 @@ class JoblessApp(App):
                 return
 
             with self.SessionLocal() as session:
-                company_repo = CompanyRepository(session)
-                company_repo.delete(message.id)
+                CompanyRepository(session).delete(message.id)
                 session.commit()
 
             self.reload_tables()
@@ -113,8 +180,7 @@ class JoblessApp(App):
                 return
 
             with self.SessionLocal() as session:
-                application_repo = ApplicationRepository(session)
-                application_repo.delete(message.id)
+                ApplicationRepository(session).delete(message.id)
                 session.commit()
 
             self.reload_tables()
@@ -131,8 +197,7 @@ class JoblessApp(App):
                 return
 
             with self.SessionLocal() as session:
-                contact_repo = ContactRepository(session)
-                contact_repo.delete(message.id)
+                ContactRepository(session).delete(message.id)
                 session.commit()
 
             self.reload_tables()
@@ -142,19 +207,6 @@ class JoblessApp(App):
             callback=callback,
         )
 
-    def add_contact(self) -> None:
-        # def callback(contact: Contact | None) -> None:
-        #     if not contact:
-        #         return
-        #
-        #     with get_session(self.engine) as session:
-        #         add_contact(session, contact)
-        #         self.notify(f'new contact "{contact.name}" added')
-        #     self.reload_tables()
-        #
-        # self.push_screen(NewContactModal(), callback=callback)
-        pass
-
     @work(thread=True, exclusive=True)
     def reload_tables(self) -> None:
         self.call_from_thread(setattr, self.applications_table, "loading", True)
@@ -162,30 +214,24 @@ class JoblessApp(App):
         self.call_from_thread(setattr, self.contacts_table, "loading", True)
 
         with self.SessionLocal() as session:
-            application_repo = ApplicationRepository(session)
-            company_repo = CompanyRepository(session)
-            contact_repo = ContactRepository(session)
+            applications = ApplicationRepository(session).get_all()
+            companies = CompanyRepository(session).get_all()
+            contacts = ContactRepository(session).get_all()
 
             self.call_from_thread(
                 self.applications_table.reload,
                 [
                     self.applications_table.item_to_row(application)
-                    for application in application_repo.get_all()
+                    for application in applications
                 ],
             )
             self.call_from_thread(
                 self.companies_table.reload,
-                [
-                    self.companies_table.item_to_row(company)
-                    for company in company_repo.get_all()
-                ],
+                [self.companies_table.item_to_row(company) for company in companies],
             )
             self.call_from_thread(
                 self.contacts_table.reload,
-                [
-                    self.contacts_table.item_to_row(contact)
-                    for contact in contact_repo.get_all()
-                ],
+                [self.contacts_table.item_to_row(contact) for contact in contacts],
             )
 
 
