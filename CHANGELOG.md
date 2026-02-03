@@ -1,3 +1,9 @@
+## 0.9.1 (2026-02-03)
+
+### Feat
+
+- **app**: improve select styles
+
 ## 0.9.0 (2026-02-03)
 
 ### Feat
