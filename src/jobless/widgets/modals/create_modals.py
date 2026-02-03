@@ -70,14 +70,13 @@ class CreateCompanyModal(BaseFormModal[Company]):
             validated_company = CompanySchema(**form_data)
             company = Company(**validated_company.model_dump(exclude_unset=True))
             company.contacts = contacts
-
             return company
         except ValidationError as e:
             for error in e.errors():
                 field_name = error["loc"][0]
                 message = error["msg"]
                 self.app.notify(
-                    f"validation error '{field_name}': {message}",
+                    f"error:'{field_name}': {message}",
                     severity="error",
                     title=f"invalid {field_name}",
                 )

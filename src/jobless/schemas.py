@@ -12,43 +12,40 @@ from pydantic import (
 from jobless.models import Location, Status
 
 
-class SkillSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class Base(BaseModel):
+    model_config = ConfigDict(
+        from_attributes=True,
+        str_strip_whitespace=True,
+        str_min_length=1,
+    )
 
+
+class SkillSchema(Base):
     name: str = Field(..., min_length=1)
-
     applications: list[ApplicationSchema] = []
 
 
-class ContactSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    name: str
+class ContactSchema(Base):
+    name: str = Field(..., min_length=1)
     email: EmailStr | None = None
     phone: str | None = None
     url: str | None = None
     notes: str | None = None
-
     companies: list[CompanySchema] = []
     applications: list[ApplicationSchema] = []
 
 
-class CompanySchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    name: str
+class CompanySchema(Base):
+    name: str = Field(..., min_length=1)
     website: str | None = None
     industry: str | None = None
     notes: str | None = None
-
     applications: list[ApplicationSchema] = []
     contacts: list[ContactSchema] = []
 
 
-class ApplicationSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    title: str
+class ApplicationSchema(Base):
+    title: str = Field(..., min_length=1)
     description: str | None = None
     salary_range: str | None = None
     platform: str | None = None
@@ -60,7 +57,6 @@ class ApplicationSchema(BaseModel):
     date_applied: date | None = None
     follow_up_date: date | None = None
     notes: str | None = None
-
     company: CompanySchema | None = None
     skills: list[SkillSchema] = []
     contacts: list[ContactSchema] = []

@@ -83,4 +83,6 @@ class BaseFormModal(ModalScreen[T]):
 
     @on(Button.Pressed, "#submit")
     def on_confirm(self) -> None:
-        self.dismiss(self.get_result())
+        result = self.get_result()
+        if result:
+            self.dismiss(result)
