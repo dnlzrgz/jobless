@@ -1,3 +1,18 @@
+## 0.9.0 (2026-02-03)
+
+### Feat
+
+- **app**: add create modals for companies and applications
+
+### Fix
+
+- **app**: handle correctly validation errors on create
+
+### Refactor
+
+- **scripts**: make skills lowercase
+- **db**: remove skill relationship with companies
+
 ## 0.8.0 (2026-01-24)
 
 ### Feat
