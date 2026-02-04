@@ -6,11 +6,11 @@ from textual.suggester import SuggestFromList
 from textual.widgets import Input, Label, Select, SelectionList, TextArea
 
 from jobless.models import Application, Company, Contact, Location, Skill, Status
-from jobless.schemas import ApplicationSchema, CompanySchema, ContactSchema
-from jobless.widgets.modals.base_form_modal import BaseFormModal
+from jobless.schemas import ApplicationCreate, CompanyCreate, ContactCreate
+from jobless.widgets.modals.base_form_modals import FormModal
 
 
-class CreateCompanyModal(BaseFormModal[Company]):
+class CreateCompanyModal(FormModal[Company]):
     def __init__(
         self,
         contacts: list[Contact] = [],
@@ -54,35 +54,122 @@ class CreateCompanyModal(BaseFormModal[Company]):
         )
 
     def get_result(self) -> Company | None:
-        selected_contacts = self.query_one("#contacts", SelectionList).selected or []
-        contacts = [
-            contact for contact in self.contacts if contact.id in selected_contacts
-        ]
-
         form_data = {
             "name": self.query_one("#name", Input).value,
             "website": self.query_one("#website", Input).value or None,
             "industry": self.query_one("#industry", Input).value or None,
+            "contact_ids": self.query_one("#contacts", SelectionList).selected,
             "notes": self.query_one("#notes", TextArea).text or None,
         }
 
         try:
-            validated_company = CompanySchema(**form_data)
-            company = Company(**validated_company.model_dump(exclude_unset=True))
-            company.contacts = contacts
+            validated_data = CompanyCreate(**form_data)
+            data_dict = validated_data.model_dump(exclude={"contact_ids"})
+            company = Company(**data_dict)
+            company.contacts = [
+                contact
+                for contact in self.contacts
+                if contact.id in validated_data.contact_ids
+            ]
             return company
         except ValidationError as e:
-            for error in e.errors():
-                field_name = error["loc"][0]
-                message = error["msg"]
-                self.app.notify(
-                    f"error:'{field_name}': {message}",
-                    severity="error",
-                    title=f"invalid {field_name}",
-                )
+            self.notify_validation_errors(e)
 
 
-class CreateApplicationModal(BaseFormModal[Application]):
+class CreateContactModal(FormModal[Contact]):
+    def __init__(
+        self,
+        companies: list[Company] = [],
+        applications: list[Application] = [],
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.companies = companies
+        self.applications = applications
+
+    def compose_form(self) -> ComposeResult:
+        yield Label("name")
+        yield Input(
+            placeholder="john doe",
+            id="name",
+        )
+
+        yield Label("email")
+        yield Input(
+            placeholder="john@doe.com",
+            valid_empty=True,
+            id="email",
+        )
+
+        yield Label("phone number")
+        yield Input(
+            placeholder="(555) 010-0001",
+            valid_empty=True,
+            id="phone",
+        )
+
+        yield Label("url")
+        yield Input(
+            placeholder="johndoe.com",
+            valid_empty=True,
+            id="url",
+        )
+
+        yield Label("companies")
+        yield SelectionList[int](
+            *[(company.name, company.id) for company in self.companies],
+            id="companies",
+        )
+
+        yield Label("applications")
+        yield SelectionList[int](
+            *[(application.title, application.id) for application in self.applications],
+            id="applications",
+        )
+
+        yield Label("notes")
+        yield TextArea(
+            placeholder="Anything that comes to mind.",
+            id="notes",
+        )
+
+    def get_result(self) -> Contact | None:
+        form_data = {
+            "name": self.query_one("#name", Input).value,
+            "email": self.query_one("#email", Input).value or None,
+            "phone": self.query_one("#phone", Input).value or None,
+            "url": self.query_one("#url", Input).value or None,
+            "notes": self.query_one("#notes", TextArea).text or None,
+            "company_ids": self.query_one("#companies", SelectionList).selected,
+            "application_ids": self.query_one("#applications", SelectionList).selected,
+        }
+
+        try:
+            validated_data = ContactCreate(**form_data)
+            scalar_data = validated_data.model_dump(
+                exclude={"company_ids", "application_ids"},
+                exclude_unset=True,
+            )
+            contact = Contact(**scalar_data)
+
+            contact.companies = [
+                company
+                for company in self.companies
+                if company.id in validated_data.company_ids
+            ]
+            contact.applications = [
+                application
+                for application in self.applications
+                if application.id in validated_data.application_ids
+            ]
+
+            return contact
+        except ValidationError as e:
+            self.notify_validation_errors(e)
+
+
+class CreateApplicationModal(FormModal[Application]):
     def __init__(
         self,
         companies: list[Company] = [],
@@ -211,22 +298,15 @@ class CreateApplicationModal(BaseFormModal[Application]):
             return None
 
     def get_result(self) -> Application | None:
-        selected_contacts = self.query_one("#contacts", SelectionList).selected
-        contacts = [
-            contact for contact in self.contacts if contact.id in selected_contacts
-        ]
-
-        raw_skills = self.query_one("#skills", Input).value
-        skill_names = {
-            name.strip().lower() for name in raw_skills.split(",") if name.strip()
-        }
-        existing_skills = {s.name.lower(): s for s in self.skills}
-        skills = [existing_skills.get(name, Skill(name=name)) for name in skill_names]
-
         company_id = self.query_one("#company", Select).value
         if company_id == Select.BLANK:
             self.notify("A company is required", severity="error")
             return None
+
+        raw_skills = self.query_one("#skills", Input).value
+        skill_names = [
+            name.strip().lower() for name in raw_skills.split(",") if name.strip()
+        ]
 
         date_applied = self.parse_date(
             "applied date", self.query_one("#date_applied", Input).value
@@ -238,6 +318,7 @@ class CreateApplicationModal(BaseFormModal[Application]):
         form_data = {
             "title": self.query_one("#title", Input).value,
             "description": self.query_one("#description", TextArea).text or None,
+            "company_id": company_id,
             "salary_range": self.query_one("#salary", Input).value or None,
             "platform": self.query_one("#platform", Input).value or None,
             "url": self.query_one("#url", Input).value or None,
@@ -248,121 +329,30 @@ class CreateApplicationModal(BaseFormModal[Application]):
             "date_applied": date_applied,
             "follow_up_date": follow_up_date,
             "notes": self.query_one("#notes", TextArea).text or None,
+            "skill_names": skill_names,
+            "contact_ids": self.query_one("#contacts", SelectionList).selected,
         }
 
         try:
-            validated_application = ApplicationSchema(**form_data)
-            application = Application(
-                **validated_application.model_dump(exclude_unset=True)
+            validated_data = ApplicationCreate(**form_data)
+            scalar_data = validated_data.model_dump(
+                exclude={"skill_names", "contact_ids"},
+                exclude_unset=True,
             )
-            application.company_id = company_id
-            application.contacts = contacts
-            application.skills = skills
+            application = Application(**scalar_data)
+
+            application.contacts = [
+                contact
+                for contact in self.contacts
+                if contact.id in validated_data.contact_ids
+            ]
+
+            existing_skills = {s.name.lower(): s for s in self.skills}
+            application.skills = [
+                existing_skills.get(name, Skill(name=name))
+                for name in validated_data.skill_names
+            ]
+
             return application
         except ValidationError as e:
-            for error in e.errors():
-                field_name = error["loc"][0]
-                message = error["msg"]
-                self.app.notify(
-                    f"validation error '{field_name}': {message}",
-                    severity="error",
-                    title=f"invalid {field_name}",
-                )
-
-
-class CreateContactModal(BaseFormModal[Contact]):
-    def __init__(
-        self,
-        companies: list[Company] = [],
-        applications: list[Application] = [],
-        *args,
-        **kwargs,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.companies = companies
-        self.applications = applications
-
-    def compose_form(self) -> ComposeResult:
-        yield Label("name")
-        yield Input(
-            placeholder="john doe",
-            id="name",
-        )
-
-        yield Label("email")
-        yield Input(
-            placeholder="john@doe.com",
-            valid_empty=True,
-            id="email",
-        )
-
-        yield Label("phone number")
-        yield Input(
-            placeholder="(555) 010-0001",
-            valid_empty=True,
-            id="phone",
-        )
-
-        yield Label("url")
-        yield Input(
-            placeholder="johndoe.com",
-            valid_empty=True,
-            id="url",
-        )
-
-        yield Label("companies")
-        yield SelectionList[int](
-            *[(company.name, company.id) for company in self.companies],
-            id="companies",
-        )
-
-        yield Label("applications")
-        yield SelectionList[int](
-            *[(application.title, application.id) for application in self.applications],
-            id="applications",
-        )
-
-        yield Label("notes")
-        yield TextArea(
-            placeholder="Anything that comes to mind.",
-            id="notes",
-        )
-
-    def get_result(self) -> Contact | None:
-        selected_companies = self.query_one("#companies", SelectionList).selected or []
-        companies = [
-            company for company in self.companies if company.id in selected_companies
-        ]
-
-        selected_applications = (
-            self.query_one("#applications", SelectionList).selected or []
-        )
-        applications = [
-            application
-            for application in self.applications
-            if application.id in selected_applications
-        ]
-
-        form_data = {
-            "name": self.query_one("#name", Input).value,
-            "email": self.query_one("#email", Input).value or None,
-            "phone": self.query_one("#phone", Input).value or None,
-            "url": self.query_one("#url", Input).value or None,
-            "notes": self.query_one("#notes", TextArea).text or None,
-        }
-
-        try:
-            validated_contact = ContactSchema(**form_data)
-            contact = Contact(**validated_contact.model_dump(exclude_unset=True))
-            contact.companies = companies
-            contact.applications = applications
-            return contact
-        except ValidationError as e:
-            for error in e.errors():
-                field_name = error["loc"][0]
-                message = error["msg"]
-                self.app.notify(
-                    f"validation error '{field_name}': {message}",
-                    severity="error",
-                    title=f"invalid {field_name}",
-                )
+            self.notify_validation_errors(e)

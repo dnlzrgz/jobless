@@ -1,5 +1,6 @@
-from typing import TypeVar
+from typing import Generic, TypeVar
 
+from pydantic import ValidationError
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -13,7 +14,7 @@ from jobless.models import Base
 T = TypeVar("T", bound=Base | bool)
 
 
-class BaseFormModal(ModalScreen[T]):
+class FormModal(ModalScreen[T]):
     """
     Base class for all Jobless modals that act as a form.
     """
@@ -51,6 +52,16 @@ class BaseFormModal(ModalScreen[T]):
         """
         raise NotImplementedError
 
+    def notify_validation_errors(self, e: ValidationError) -> None:
+        for error in e.errors():
+            field = error["loc"][0]
+            msg = error["msg"]
+            self.notify(
+                f"{field}: {msg}",
+                severity="error",
+                title="validatin error",
+            )
+
     def compose(self) -> ComposeResult:
         with VerticalScroll(classes="form") as vs:
             vs.border_title = self.form_title
@@ -86,3 +97,26 @@ class BaseFormModal(ModalScreen[T]):
         result = self.get_result()
         if result:
             self.dismiss(result)
+
+
+class EditFormModal(FormModal[T], Generic[T]):
+    def __init__(
+        self,
+        title: str,
+        instance: T,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(title=title, *args, **kwargs)
+        self.instance = instance
+
+    def load_data(self) -> None:
+        """
+        Override this in subclass to map self.instance attributes
+        to the widgets values.
+        """
+        raise NotImplementedError()
+
+    def on_mount(self) -> None:
+        super().on_mount()
+        self.load_data()

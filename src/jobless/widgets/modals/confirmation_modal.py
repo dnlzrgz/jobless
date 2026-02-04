@@ -2,10 +2,10 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.widgets import Static
 
-from jobless.widgets.modals.base_form_modal import BaseFormModal
+from jobless.widgets.modals.base_form_modals import FormModal
 
 
-class ConfirmationModal(BaseFormModal[bool]):
+class ConfirmationModal(FormModal[bool]):
     BINDINGS = [
         Binding(
             "y",
@@ -13,7 +13,7 @@ class ConfirmationModal(BaseFormModal[bool]):
             description="confirm",
             priority=True,
         ),
-    ] + BaseFormModal.BINDINGS
+    ] + FormModal.BINDINGS
 
     def __init__(self, message: str, *args, **kwargs) -> None:
         super().__init__(title="confirm", submit_label="confirm", *args, **kwargs)

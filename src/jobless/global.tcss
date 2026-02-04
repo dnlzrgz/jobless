@@ -43,9 +43,15 @@ Select {
   }
 
   & > SelectOverlay {
-    padding: 0
+    padding: 0;
     border: none;
   }
+}
+
+SelectionList {
+  border: none;
+  min-height: 3;
+  padding: 0;
 }
 
 TextArea {
@@ -80,7 +86,7 @@ ApplicationTable {
   row-span: 2;
 }
 
-BaseFormModal {
+FormModal {
   align: center middle;
   background: $background 70%;
   height: 100%;
