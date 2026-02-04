@@ -1,3 +1,9 @@
+## 0.10.0 (2026-02-04)
+
+### Feat
+
+- **db**: update schemas for better validation
+
 ## 0.9.1 (2026-02-03)
 
 ### Feat

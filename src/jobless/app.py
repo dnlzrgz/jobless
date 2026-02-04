@@ -27,6 +27,7 @@ from jobless.widgets.modals.create_modals import (
     CreateCompanyModal,
     CreateContactModal,
 )
+from jobless.widgets.modals.edit_modals import EditCompanyModal
 
 
 class JoblessApp(App):
@@ -152,6 +153,38 @@ class JoblessApp(App):
         self.push_screen(
             CreateContactModal(
                 companies=companies, applications=applications, title="new contact"
+            ),
+            callback=callback,
+        )
+
+    @on(CompanyTable.Update)
+    def update_company(self, message: CompanyTable.Update) -> None:
+        with self.SessionLocal() as session:
+            contacts = ContactRepository(session).get_all()
+            company = CompanyRepository(session).get_by_id(message.id)
+
+            assert company
+            _ = company.contacts  # Load contact relationships
+
+        if not company:
+            return
+
+        def callback(updated_company: Company | None) -> None:
+            if not updated_company:
+                return
+
+            # with self.SessionLocal() as session:
+            # TODO: update company
+            # TODO: commit changes
+            # pass
+
+            self.reload_tables()
+
+        self.push_screen(
+            EditCompanyModal(
+                title="update company details",
+                instance=company,
+                contacts=contacts,
             ),
             callback=callback,
         )

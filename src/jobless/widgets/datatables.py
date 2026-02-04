@@ -23,6 +23,11 @@ class JoblessTable(DataTable, Generic[T]):
             description="delete",
         ),
         Binding(
+            "e",
+            "update",
+            description="edit",
+        ),
+        Binding(
             "n",
             "create",
             description="new",
@@ -31,6 +36,12 @@ class JoblessTable(DataTable, Generic[T]):
 
     class Create(Message):
         pass
+
+    class Update(Message):
+        def __init__(self, id: int) -> None:
+            self.id = id
+
+            super().__init__()
 
     class Delete(Message):
         def __init__(
@@ -66,6 +77,16 @@ class JoblessTable(DataTable, Generic[T]):
 
         self.loading = False
 
+    def action_create(self) -> None:
+        self.post_message(self.Create())
+
+    def action_update(self) -> None:
+        if self.cursor_row is not None:
+            row_data = self.get_row_at(self.cursor_row)
+            item_id = int(row_data[0])
+
+            self.post_message(self.Update(item_id))
+
     def action_delete(self) -> None:
         if self.cursor_row is not None:
             row_data = self.get_row_at(self.cursor_row)
@@ -73,9 +94,6 @@ class JoblessTable(DataTable, Generic[T]):
             item_name = str(row_data[1])
 
             self.post_message(self.Delete(item_id, item_name))
-
-    def action_create(self) -> None:
-        self.post_message(self.Create())
 
 
 class CompanyTable(JoblessTable):
@@ -92,6 +110,9 @@ class CompanyTable(JoblessTable):
     PLURAL = "companies"
 
     class Create(JoblessTable.Create):
+        pass
+
+    class Update(JoblessTable.Update):
         pass
 
     class Delete(JoblessTable.Delete):
@@ -126,6 +147,9 @@ class ApplicationTable(JoblessTable):
     class Create(JoblessTable.Create):
         pass
 
+    class Update(JoblessTable.Update):
+        pass
+
     class Delete(JoblessTable.Delete):
         pass
 
@@ -157,6 +181,9 @@ class ContactTable(JoblessTable):
     LABEL = "contact"
 
     class Create(JoblessTable.Create):
+        pass
+
+    class Update(JoblessTable.Update):
         pass
 
     class Delete(JoblessTable.Delete):
