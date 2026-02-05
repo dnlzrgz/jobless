@@ -75,8 +75,6 @@ class JoblessTable(DataTable, Generic[T]):
         self.add_rows(rows)
         self.border_subtitle = f"{len(rows)}"
 
-        self.loading = False
-
     def action_create(self) -> None:
         self.post_message(self.Create())
 

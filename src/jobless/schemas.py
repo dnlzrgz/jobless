@@ -51,6 +51,7 @@ class ContactBase(BaseSchema):
 
 
 class ContactCreate(ContactBase):
+    # TODO: check that email and phone are unique
     pass
 
 

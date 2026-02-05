@@ -10,7 +10,7 @@ from jobless.schemas import ApplicationCreate, CompanyCreate, ContactCreate
 from jobless.widgets.modals.base_form_modals import FormModal
 
 
-class CreateCompanyModal(FormModal[Company]):
+class CreateCompanyModal(FormModal[CompanyCreate]):
     def __init__(
         self,
         contacts: list[Contact] = [],
@@ -53,7 +53,7 @@ class CreateCompanyModal(FormModal[Company]):
             id="notes",
         )
 
-    def get_result(self) -> Company | None:
+    def get_result(self) -> CompanyCreate | None:
         form_data = {
             "name": self.query_one("#name", Input).value,
             "website": self.query_one("#website", Input).value or None,
@@ -63,20 +63,12 @@ class CreateCompanyModal(FormModal[Company]):
         }
 
         try:
-            validated_data = CompanyCreate(**form_data)
-            data_dict = validated_data.model_dump(exclude={"contact_ids"})
-            company = Company(**data_dict)
-            company.contacts = [
-                contact
-                for contact in self.contacts
-                if contact.id in validated_data.contact_ids
-            ]
-            return company
+            return CompanyCreate(**form_data)
         except ValidationError as e:
             self.notify_validation_errors(e)
 
 
-class CreateContactModal(FormModal[Contact]):
+class CreateContactModal(FormModal[ContactCreate]):
     def __init__(
         self,
         companies: list[Company] = [],
@@ -134,7 +126,7 @@ class CreateContactModal(FormModal[Contact]):
             id="notes",
         )
 
-    def get_result(self) -> Contact | None:
+    def get_result(self) -> ContactCreate | None:
         form_data = {
             "name": self.query_one("#name", Input).value,
             "email": self.query_one("#email", Input).value or None,
@@ -146,30 +138,12 @@ class CreateContactModal(FormModal[Contact]):
         }
 
         try:
-            validated_data = ContactCreate(**form_data)
-            scalar_data = validated_data.model_dump(
-                exclude={"company_ids", "application_ids"},
-                exclude_unset=True,
-            )
-            contact = Contact(**scalar_data)
-
-            contact.companies = [
-                company
-                for company in self.companies
-                if company.id in validated_data.company_ids
-            ]
-            contact.applications = [
-                application
-                for application in self.applications
-                if application.id in validated_data.application_ids
-            ]
-
-            return contact
+            return ContactCreate(**form_data)
         except ValidationError as e:
             self.notify_validation_errors(e)
 
 
-class CreateApplicationModal(FormModal[Application]):
+class CreateApplicationModal(FormModal[ApplicationCreate]):
     def __init__(
         self,
         companies: list[Company] = [],
@@ -297,7 +271,7 @@ class CreateApplicationModal(FormModal[Application]):
             )
             return None
 
-    def get_result(self) -> Application | None:
+    def get_result(self) -> ApplicationCreate | None:
         company_id = self.query_one("#company", Select).value
         if company_id == Select.BLANK:
             self.notify("A company is required", severity="error")
@@ -325,7 +299,7 @@ class CreateApplicationModal(FormModal[Application]):
             "address": self.query_one("#address", Input).value or None,
             "location_type": self.query_one("#location", Select).value,
             "status": self.query_one("#status", Select).value,
-            "priority": int(self.query_one("#priority", Input).value or 0),
+            "priority": self.query_one("#priority", Input).value or 0,
             "date_applied": date_applied,
             "follow_up_date": follow_up_date,
             "notes": self.query_one("#notes", TextArea).text or None,
@@ -334,25 +308,6 @@ class CreateApplicationModal(FormModal[Application]):
         }
 
         try:
-            validated_data = ApplicationCreate(**form_data)
-            scalar_data = validated_data.model_dump(
-                exclude={"skill_names", "contact_ids"},
-                exclude_unset=True,
-            )
-            application = Application(**scalar_data)
-
-            application.contacts = [
-                contact
-                for contact in self.contacts
-                if contact.id in validated_data.contact_ids
-            ]
-
-            existing_skills = {s.name.lower(): s for s in self.skills}
-            application.skills = [
-                existing_skills.get(name, Skill(name=name))
-                for name in validated_data.skill_names
-            ]
-
-            return application
+            return ApplicationCreate(**form_data)
         except ValidationError as e:
             self.notify_validation_errors(e)

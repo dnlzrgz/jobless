@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from pydantic import ValidationError
 from textual import on
@@ -9,9 +9,9 @@ from textual.css.query import NoMatches
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input
 
-from jobless.models import Base
+from jobless.schemas import BaseSchema
 
-T = TypeVar("T", bound=Base | bool)
+T = TypeVar("T", bound=BaseSchema | bool)
 
 
 class FormModal(ModalScreen[T]):
@@ -99,7 +99,7 @@ class FormModal(ModalScreen[T]):
             self.dismiss(result)
 
 
-class EditFormModal(FormModal[T], Generic[T]):
+class EditFormModal(FormModal[T]):
     def __init__(
         self,
         title: str,
@@ -109,6 +109,9 @@ class EditFormModal(FormModal[T], Generic[T]):
     ) -> None:
         super().__init__(title=title, *args, **kwargs)
         self.instance = instance
+
+    def get_result(self) -> T | None:
+        raise NotImplementedError
 
     def load_data(self) -> None:
         """

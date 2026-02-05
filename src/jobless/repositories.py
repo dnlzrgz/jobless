@@ -21,6 +21,13 @@ class GenericRepository(Generic[T]):
     def get_by_id(self, id: int | str) -> T | None:
         return self.session.get(self.model, id)
 
+    def get_by_ids(self, ids: list[int | str]) -> list[T]:
+        if not ids:
+            return []
+
+        statement = select(self.model).where(self.model.id.in_(ids))
+        return list(self.session.scalars(statement).all())
+
     def get_with_details(self, id: int | str) -> T | None:
         raise NotImplementedError
 
