@@ -370,7 +370,7 @@ wheels = [
 
 [[package]]
 name = "jobless"
-version = "0.10.1"
+version = "0.10.2"
 source = { editable = "." }
 dependencies = [
     { name = "email-validator" },

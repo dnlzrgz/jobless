@@ -1,3 +1,9 @@
+## 0.10.2 (2026-02-06)
+
+### Refactor
+
+- **db**: remove pydantic schemas and update repositories
+
 ## 0.10.1 (2026-02-05)
 
 ### Feat

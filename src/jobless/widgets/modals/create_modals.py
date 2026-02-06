@@ -6,11 +6,11 @@ from textual.suggester import SuggestFromList
 from textual.widgets import Input, Label, Select, SelectionList, TextArea
 
 from jobless.models import Application, Company, Contact, Location, Skill, Status
-from jobless.schemas import ApplicationCreate, CompanyCreate, ContactCreate
+from jobless.schemas import ApplicationSchema, CompanySchema, ContactSchema
 from jobless.widgets.modals.base_form_modals import FormModal
 
 
-class CreateCompanyModal(FormModal[CompanyCreate]):
+class CreateCompanyModal(FormModal[CompanySchema]):
     def __init__(
         self,
         contacts: list[Contact] = [],
@@ -53,7 +53,7 @@ class CreateCompanyModal(FormModal[CompanyCreate]):
             id="notes",
         )
 
-    def get_result(self) -> CompanyCreate | None:
+    def get_result(self) -> CompanySchema | None:
         form_data = {
             "name": self.query_one("#name", Input).value,
             "website": self.query_one("#website", Input).value or None,
@@ -63,12 +63,13 @@ class CreateCompanyModal(FormModal[CompanyCreate]):
         }
 
         try:
-            return CompanyCreate(**form_data)
+            validated = CompanySchema.model_validate(form_data)
+            return validated
         except ValidationError as e:
             self.notify_validation_errors(e)
 
 
-class CreateContactModal(FormModal[ContactCreate]):
+class CreateContactModal(FormModal[ContactSchema]):
     def __init__(
         self,
         companies: list[Company] = [],
@@ -126,7 +127,7 @@ class CreateContactModal(FormModal[ContactCreate]):
             id="notes",
         )
 
-    def get_result(self) -> ContactCreate | None:
+    def get_result(self) -> ContactSchema | None:
         form_data = {
             "name": self.query_one("#name", Input).value,
             "email": self.query_one("#email", Input).value or None,
@@ -138,12 +139,12 @@ class CreateContactModal(FormModal[ContactCreate]):
         }
 
         try:
-            return ContactCreate(**form_data)
+            return ContactSchema(**form_data)
         except ValidationError as e:
             self.notify_validation_errors(e)
 
 
-class CreateApplicationModal(FormModal[ApplicationCreate]):
+class CreateApplicationModal(FormModal[ApplicationSchema]):
     def __init__(
         self,
         companies: list[Company] = [],
@@ -271,7 +272,7 @@ class CreateApplicationModal(FormModal[ApplicationCreate]):
             )
             return None
 
-    def get_result(self) -> ApplicationCreate | None:
+    def get_result(self) -> ApplicationSchema | None:
         company_id = self.query_one("#company", Select).value
         if company_id == Select.BLANK:
             self.notify("A company is required", severity="error")
@@ -308,6 +309,6 @@ class CreateApplicationModal(FormModal[ApplicationCreate]):
         }
 
         try:
-            return ApplicationCreate(**form_data)
+            return ApplicationSchema(**form_data)
         except ValidationError as e:
             self.notify_validation_errors(e)

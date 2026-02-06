@@ -9,9 +9,9 @@ from textual.css.query import NoMatches
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input
 
-from jobless.schemas import BaseSchema
+from jobless.models import Base
 
-T = TypeVar("T", bound=BaseSchema | bool)
+T = TypeVar("T", bound=Base | bool)
 
 
 class FormModal(ModalScreen[T]):
@@ -52,6 +52,7 @@ class FormModal(ModalScreen[T]):
         """
         raise NotImplementedError
 
+    # TODO: remove since now the errors come from SQLAlchemy
     def notify_validation_errors(self, e: ValidationError) -> None:
         for error in e.errors():
             field = error["loc"][0]
@@ -59,7 +60,7 @@ class FormModal(ModalScreen[T]):
             self.notify(
                 f"{field}: {msg}",
                 severity="error",
-                title="validatin error",
+                title="validation error",
             )
 
     def compose(self) -> ComposeResult:
