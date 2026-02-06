@@ -1,136 +1,106 @@
-from faker import Faker
-
 from jobless.models import Application, Company, Contact, Skill, Status
-from jobless.repositories import (
-    ApplicationRepository,
-    CompanyRepository,
-    ContactRepository,
-    SkillRepository,
-)
-
-fake = Faker()
 
 
-def test_add_and_get_by_id(session):
-    skill_repo = SkillRepository(session)
-    skill_name = fake.word()
-    new_skill = Skill(name=skill_name)
+def test_add(faker, skill_repository):
+    skill_name = faker.word()
+    skill = skill_repository.add(Skill(name=skill_name))
 
-    skill_repo.add(new_skill)
+    assert skill
+    assert skill.name == skill_name
 
-    skill_in_db = skill_repo.get_by_id(skill_name)
+
+def test_get_by_id(faker, skill_repository):
+    skill_name = faker.word()
+    skill_repository.add(Skill(name=skill_name))
+
+    skill_in_db = skill_repository.get_by_id(skill_name)
     assert skill_in_db
     assert skill_in_db.name == skill_name
 
 
-def test_get_all(session):
-    skill_repo = SkillRepository(session)
-
-    skills = [Skill(name=name) for name in {"Python", "JavaScript", "C", "TDD"}]
+def test_get_all(skill_repository):
+    skills = [Skill(name=name) for name in {"python", "javascript", "c", "tdd", "rust"}]
     for skill in skills:
-        skill_repo.add(skill)
+        skill_repository.add(skill)
 
-    skills_in_db = skill_repo.get_all()
+    skills_in_db = skill_repository.get_all()
     assert len(skills_in_db) == len(skills)
 
 
-def test_update(session):
-    skill_repo = SkillRepository(session)
-    skill = Skill(name=fake.word())
-    skill_repo.add(skill)
+def test_delete(faker, skill_repository):
+    skill_name = faker.name()
+    skill = skill_repository.add(Skill(name=skill_name))
+    assert skill
+    assert skill.name  # in the case of skills the name is the id
 
-    skill.name = "Rust"
-    updated = skill_repo.update(skill)
-
-    assert updated.name == "Rust"
-
-
-def test_delete(session):
-    skill_repo = SkillRepository(session)
-    skill = Skill(name="JavaScript")
-    skill_repo.add(skill)
-
-    skill_repo.delete("JavaScript")
-    assert not skill_repo.get_by_id("JavaScript")
+    skill_repository.delete(skill_name)
+    skill = skill_repository.get_by_id(skill_name)
+    assert not skill
 
 
-def test_get_application_with_details(session):
-    company_repo = CompanyRepository(session)
-    application_repo = ApplicationRepository(session)
+def test_update(skill_repository):
+    skill = skill_repository.add(Skill(name="python"))
+    updated = skill_repository.update(skill.name, {"name": "rust"})
 
-    company = Company(name=fake.company())
-    company_repo.add(company)
+    assert updated
+    assert updated.name == "rust"
 
-    application = Application(
-        title=fake.job(),
-        company_id=company.id,
+
+def test_get_application_with_details(
+    faker,
+    company_repository,
+    application_repository,
+    skill_repository,
+):
+    company = company_repository.add(Company(name=faker.company()))
+    skill = skill_repository.add(Skill(name=faker.name()))
+
+    application = application_repository.add(
+        Application(
+            title=faker.job(),
+            company_id=company.id,
+            skills=[skill],
+        )
     )
-    application_repo.add(application)
-    session.commit()
 
-    detailed_application = application_repo.get_with_details(application.id)
-    assert detailed_application
-    assert detailed_application.company.name == company.name
-    assert detailed_application.created_at
-    assert detailed_application.last_updated
-    assert hasattr(detailed_application, "skills")
-    assert hasattr(detailed_application, "contacts")
+    application_with_details = application_repository.get_with_details(application.id)
+    assert application_with_details
+    assert application_with_details.company.name == company.name
+    assert application_with_details.created_at
+    assert application_with_details.last_updated
+    assert hasattr(application_with_details, "skills")
+    assert len(application_with_details.skills) == 1
+    assert hasattr(application_with_details, "contacts")
 
 
-def test_get_applications_by_status(session):
-    company_repo = CompanyRepository(session)
-    application_repo = ApplicationRepository(session)
+def test_get_applications_by_status(faker, company_repository, application_repository):
+    company = company_repository.add(Company(name=faker.company()))
 
-    company = Company(name=fake.company())
-    company_repo.add(company)
-
-    application_repo.add(
+    application_repository.add(
         Application(title="Job A", status=Status.APPLIED, company_id=company.id)
     )
-    application_repo.add(
+    application_repository.add(
         Application(title="Job B", status=Status.INTERVIEWING, company_id=company.id)
     )
-    session.flush()
 
-    applied_only = application_repo.get_by_status(Status.APPLIED)
+    applied_only = application_repository.get_by_status(Status.APPLIED)
     assert len(applied_only) == 1
     assert applied_only[0].title == "Job A"
 
 
-def test_get_application_by_skill(session):
-    application_repo = ApplicationRepository(session)
+def test_get_all_emails_from_contacts(contact_repository, faker):
+    contacts_with_email = [
+        Contact(name=faker.name(), email=faker.email()) for _ in range(10)
+    ]
+    for contact in contacts_with_email:
+        contact_repository.add(contact)
 
-    skill = Skill(name="Python")
-    company = Company(name=fake.company())
-    session.add_all([skill, company])
-    session.flush()
+    # add contact without email just in case
+    contact_repository.add(Contact(name=faker.name()))
 
-    application = Application(
-        title=fake.job(),
-        company_id=company.id,
-        skills=[skill],
-    )
-    application_repo.add(application)
-    session.commit()
-
-    results = application_repo.get_by_skill(skill.name)
-    assert results
-    assert len(results) == 1
-    assert results[0].title == application.title
-
-
-def test_get_all_emails_from_contacts(session):
-    contact_repo = ContactRepository(session)
-    contacts = [Contact(name=fake.name(), email=fake.email()) for _ in range(10)]
-    for contact in contacts:
-        contact_repo.add(contact)
-
-    # contact without email
-    contact_repo.add(Contact(name=fake.name()))
-
-    emails = contact_repo.get_all_emails()
+    emails = contact_repository.get_all_emails()
     assert emails
-    assert len(emails) == len(contacts)
+    assert len(emails) == len(contacts_with_email)
 
-    for contact in contacts:
+    for contact in contacts_with_email:
         assert contact.email in emails

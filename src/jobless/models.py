@@ -7,7 +7,9 @@ from sqlalchemy.orm import (
     Mapped,
     mapped_column,
     relationship,
+    validates,
 )
+from email_validator import validate_email, EmailNotValidError
 
 
 class Base(DeclarativeBase):
@@ -92,7 +94,7 @@ class Company(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, index=True, unique=True)
-    website: Mapped[str | None] = mapped_column(String)
+    website: Mapped[str | None] = mapped_column(String, unique=True)
     industry: Mapped[str | None] = mapped_column(String)
 
     notes: Mapped[str | None] = mapped_column(String)
@@ -157,7 +159,7 @@ class Contact(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, index=True)
     email: Mapped[str | None] = mapped_column(String, index=True, unique=True)
-    phone: Mapped[str | None] = mapped_column(String)
+    phone: Mapped[str | None] = mapped_column(String, unique=True)
     url: Mapped[str | None] = mapped_column(String)
 
     notes: Mapped[str | None] = mapped_column(String)
@@ -170,3 +172,11 @@ class Contact(Base, TimestampMixin):
         back_populates="contacts",
         secondary=application_contact_link,
     )
+
+    @validates("email")
+    def validate_email(self, key, email):
+        try:
+            email_info = validate_email(email, check_deliverability=False)
+            return email_info.normalized
+        except EmailNotValidError as e:
+            raise ValueError(f"failed email validation: {e}")

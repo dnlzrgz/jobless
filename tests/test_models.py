@@ -1,21 +1,14 @@
-from faker import Faker
+import pytest
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from jobless.models import Application, Company
-
-fake = Faker()
+from jobless.models import Application, Company, Contact
 
 
-def test_delete_company_cascades_to_applications(session: Session):
-    """
-    Deleting a company should also remove its applications.
-    """
+def test_delete_company_cascades_to_applications(session, faker):
+    company = Company(name=faker.company())
 
-    company = Company(name=fake.company())
-
-    Application(title=fake.job(), company=company)
-    Application(title=fake.job(), company=company)
+    Application(title=faker.job(), company=company)
+    Application(title=faker.job(), company=company)
 
     session.add(company)
     session.commit()
@@ -28,3 +21,8 @@ def test_delete_company_cascades_to_applications(session: Session):
 
     remaining_applications = session.scalars(select(Application)).all()
     assert len(remaining_applications) == 0
+
+
+def test_invalid_contact_email_raises_exception(faker):
+    with pytest.raises(ValueError):
+        Contact(name=faker.name(), email="wrong")
