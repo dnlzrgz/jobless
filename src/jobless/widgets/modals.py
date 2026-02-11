@@ -122,17 +122,14 @@ class CreateCompanyModal(FormModal):
         contacts: list[Contact],
         known_names: set[str],
         known_urls: set[str],
+        title: str = "add a new company",
         *args,
         **kwargs,
     ) -> None:
         self.contacts = contacts
         self.known_names = known_names
         self.known_urls = known_urls
-        super().__init__(
-            title="add a new company",
-            *args,
-            **kwargs,
-        )
+        super().__init__(title=title, *args, **kwargs)
 
     def compose_form(self) -> ComposeResult:
         yield Label("name")
@@ -206,6 +203,7 @@ class CreateContactModal(FormModal):
         known_emails: set[str],
         known_urls: set[str],
         known_phones: set[str],
+        title: str = "add a new contact",
         *args,
         **kwargs,
     ) -> None:
@@ -214,11 +212,7 @@ class CreateContactModal(FormModal):
         self.known_emails = known_emails
         self.known_urls = known_urls
         self.known_phones = known_phones
-        super().__init__(
-            title="add new contact",
-            *args,
-            **kwargs,
-        )
+        super().__init__(title=title, *args, **kwargs)
 
     def compose_form(self) -> ComposeResult:
         yield Label("name")
@@ -303,13 +297,14 @@ class CreateApplicationModal(FormModal):
         companies: list[Company],
         contacts: list[Contact],
         known_urls: set[str],
+        title: str = "add a new application",
         *args,
         **kwargs,
     ) -> None:
         self.companies = companies
         self.contacts = contacts
         self.known_urls = known_urls
-        super().__init__(title="add new application", *args, **kwargs)
+        super().__init__(title=title, *args, **kwargs)
 
     def compose_form(self) -> ComposeResult:
         yield Label("job title")
@@ -331,6 +326,7 @@ class CreateApplicationModal(FormModal):
         yield Select(
             options=[(status.value, status) for status in Status],
             value=Status.SAVED,
+            allow_blank=False,
             id="status",
         )
 
@@ -351,6 +347,7 @@ class CreateApplicationModal(FormModal):
         yield Select(
             options=[(location.value, location) for location in Location],
             value=Location.ON_SITE,
+            allow_blank=False,
             id="location",
         )
 
@@ -423,3 +420,151 @@ class CreateApplicationModal(FormModal):
             "contacts": contacts,
             "notes": self.query_one("#notes", TextArea).text.strip() or None,
         }
+
+
+class UpdateCompanyModal(CreateCompanyModal):
+    def __init__(
+        self,
+        instance: Company,
+        contacts: list[Contact],
+        known_names: set[str],
+        known_urls: set[str],
+        title: str = "update company",
+        *args,
+        **kwargs,
+    ) -> None:
+        self.instance = instance
+
+        safe_names = known_names - {self.instance.name}
+        safe_urls = known_urls - {self.instance.url}
+
+        super().__init__(
+            contacts=contacts,
+            known_names=safe_names,
+            known_urls=safe_urls,
+            title=title,
+            *args,
+            **kwargs,
+        )
+
+    def on_mount(self) -> None:
+        super().on_mount()
+
+        self.query_one("#name", Input).value = self.instance.name
+        self.query_one("#url", Input).value = self.instance.url or ""
+        self.query_one("#industry", Input).value = self.instance.industry or ""
+        self.query_one("#notes", TextArea).text = self.instance.notes or ""
+
+        selection_list = self.query_one("#contacts", SelectionList)
+        selected_contacts = [contact.id for contact in self.instance.contacts]
+        for contact_id in selected_contacts:
+            selection_list.select(contact_id)
+
+
+class UpdateContactModal(CreateContactModal):
+    def __init__(
+        self,
+        instance: Contact,
+        companies: list[Company],
+        applications: list[Application],
+        known_emails: set[str],
+        known_urls: set[str],
+        known_phones: set[str],
+        title: str = "update contact",
+        *args,
+        **kwargs,
+    ) -> None:
+        self.instance = instance
+
+        safe_emails = known_emails - {self.instance.email}
+        safe_urls = known_urls - {self.instance.url}
+        safe_phones = known_phones - {self.instance.phone}
+
+        super().__init__(
+            companies=companies,
+            applications=applications,
+            known_emails=safe_emails,
+            known_urls=safe_urls,
+            known_phones=safe_phones,
+            title=title,
+            *args,
+            **kwargs,
+        )
+
+    def on_mount(self) -> None:
+        super().on_mount()
+
+        self.query_one("#name", Input).value = self.instance.name
+        self.query_one("#email", Input).value = self.instance.email or ""
+        self.query_one("#phone", Input).value = self.instance.phone or ""
+        self.query_one("#url", Input).value = self.instance.url or ""
+        self.query_one("#notes", TextArea).text = self.instance.notes or ""
+
+        company_selection_list = self.query_one("#companies", SelectionList)
+        selected_companies = [company.id for company in self.instance.companies]
+        for company_id in selected_companies:
+            company_selection_list.select(company_id)
+
+        application_selection_list = self.query_one("#applications", SelectionList)
+        selected_applications = [
+            application.id for application in self.instance.applications
+        ]
+        for application_id in selected_applications:
+            application_selection_list.select(application_id)
+
+
+class UpdateApplicationModal(CreateApplicationModal):
+    def __init__(
+        self,
+        instance: Application,
+        companies: list[Company],
+        contacts: list[Contact],
+        known_urls: set[str],
+        title: str = "update application",
+        *args,
+        **kwargs,
+    ) -> None:
+        self.instance = instance
+
+        safe_urls = known_urls - {self.instance.url}
+
+        super().__init__(
+            companies=companies,
+            contacts=contacts,
+            known_urls=safe_urls,
+            title=title,
+            *args,
+            **kwargs,
+        )
+
+    def on_mount(self) -> None:
+        super().on_mount()
+
+        self.query_one("#title", Input).value = self.instance.title
+        self.query_one("#priority", Input).value = str(self.instance.priority)
+        self.query_one("#platform", Input).value = self.instance.platform or ""
+        self.query_one("#salary", Input).value = self.instance.salary_range or ""
+
+        if self.instance.date_applied:
+            self.query_one(
+                "#date_applied",
+                Input,
+            ).value = self.instance.date_applied.strftime("%Y-%m-%d")
+
+        if self.instance.follow_up_date:
+            self.query_one(
+                "#follow_up_date",
+                Input,
+            ).value = self.instance.follow_up_date.strftime("%Y-%m-%d")
+
+        self.query_one("#description", TextArea).text = self.instance.description or ""
+        self.query_one("#notes", TextArea).text = self.instance.notes or ""
+
+        self.query_one("#company_id", Select).value = self.instance.company_id
+        self.query_one("#status", Select).value = self.instance.status
+        self.query_one("#location", Select).value = self.instance.location_type
+
+        selection_list = self.query_one("#contacts", SelectionList)
+        selected_contacts = [contact.id for contact in self.instance.contacts]
+        for contact_id in selected_contacts:
+            selection_list.select(contact_id)

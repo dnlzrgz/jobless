@@ -25,6 +25,7 @@ class Status(StrEnum):
     REJECTED = "Rejected"
     GHOSTED = "Ghosted"
     CLOSED = "Closed"
+    WITHDRAWN = "Withdrawn"
 
 
 class Location(StrEnum):
@@ -122,7 +123,7 @@ class Application(Base, TimestampMixin):
     platform: Mapped[str | None] = mapped_column(String)
     url: Mapped[str | None] = mapped_column(String, unique=True)
     address: Mapped[str | None] = mapped_column(String)
-    location_type: Mapped[Location | None] = mapped_column(String)
+    location_type: Mapped[Location] = mapped_column(String, default=Location.ON_SITE)
     status: Mapped[Status] = mapped_column(String, default=Status.SAVED, index=True)
     priority: Mapped[int] = mapped_column(Integer, default=0)
 

@@ -128,37 +128,6 @@ class CompanyRepository(GenericRepository[Company]):
         finally:
             session.close()
 
-    def get_by_name(self, name: str) -> Company | None:
-        raise NotImplementedError
-
-    def get_by_application(self, application_id: int) -> Company | None:
-        session = self.session_factory()
-        try:
-            statement = (
-                select(Company)
-                .join(Company.applications)
-                .where(Application.id == application_id)
-            )
-            company = session.scalars(statement).first()
-            if company:
-                session.expunge(company)
-
-            return company
-        finally:
-            session.close()
-
-    def get_by_contact(self, contact_id: int) -> list[Company]:
-        session = self.session_factory()
-        try:
-            statement = (
-                select(Company).join(Company.contacts).where(Contact.id == contact_id)
-            )
-            companies = session.scalars(statement).all()
-            session.expunge_all()
-            return list(companies)
-        finally:
-            session.close()
-
     def list_names(self) -> set[str]:
         return self._list_unique_values(Company.name)
 
@@ -254,7 +223,7 @@ class ContactRepository(GenericRepository[Contact]):
         try:
             statement = (
                 select(Contact)
-                .where(Contact.name == id)
+                .where(Contact.id == id)
                 .options(
                     selectinload(Contact.applications),
                     selectinload(Contact.companies),
