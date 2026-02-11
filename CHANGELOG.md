@@ -1,3 +1,9 @@
+## 0.11.0 (2026-02-11)
+
+### Refactor
+
+- **app**: add registry pattern
+
 ## 0.10.2 (2026-02-06)
 
 ### Refactor
