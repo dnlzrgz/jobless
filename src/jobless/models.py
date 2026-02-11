@@ -21,8 +21,10 @@ class Status(StrEnum):
     APPLIED = "Applied"
     INTERVIEWING = "Interviewing"
     OFFER = "Offer"
+    ACCEPTED = "Accepted"
     REJECTED = "Rejected"
     GHOSTED = "Ghosted"
+    CLOSED = "Closed"
 
 
 class Location(StrEnum):
