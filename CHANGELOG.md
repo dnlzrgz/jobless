@@ -1,3 +1,9 @@
+## 0.13.0 (2026-02-11)
+
+### Feat
+
+- **db**: add missing application possible statuses
+
 ## 0.12.0 (2026-02-11)
 
 ### Feat
