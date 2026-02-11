@@ -118,7 +118,7 @@ class Application(Base, TimestampMixin):
     salary_range: Mapped[str | None] = mapped_column(String)
 
     platform: Mapped[str | None] = mapped_column(String)
-    url: Mapped[str | None] = mapped_column(String)
+    url: Mapped[str | None] = mapped_column(String, unique=True)
     address: Mapped[str | None] = mapped_column(String)
     location_type: Mapped[Location | None] = mapped_column(String)
     status: Mapped[Status] = mapped_column(String, default=Status.SAVED, index=True)
@@ -160,7 +160,7 @@ class Contact(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String, index=True)
     email: Mapped[str | None] = mapped_column(String, index=True, unique=True)
     phone: Mapped[str | None] = mapped_column(String, unique=True)
-    url: Mapped[str | None] = mapped_column(String)
+    url: Mapped[str | None] = mapped_column(String, unique=True)
 
     notes: Mapped[str | None] = mapped_column(String)
 

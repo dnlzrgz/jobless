@@ -21,6 +21,9 @@ class GenericRepository(Generic[T]):
             session.refresh(instance)
             session.expunge(instance)
             return instance
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
@@ -32,10 +35,13 @@ class GenericRepository(Generic[T]):
                 session.expunge(instance)
 
             return instance
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
-    def get_by_ids(self, ids: list[int | str]) -> list[T]:
+    def list_by_ids(self, ids: list[int | str]) -> list[T]:
         if not ids:
             return []
 
@@ -45,20 +51,29 @@ class GenericRepository(Generic[T]):
             instances = list(session.scalars(statement).all())
             session.expunge_all()
             return instances
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
     def get_with_details(self, id: int | str) -> T | None:
         raise NotImplementedError
 
-    def get_all(self) -> list[T]:
+    def list(self) -> list[T]:
         session = self.session_factory()
         try:
             instances = session.scalars(select(self.model)).all()
             session.expunge_all()
             return list(instances)
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
+
+    def list_with_details(self) -> list[T]:
+        raise NotImplementedError
 
     def update(self, id: int | str, data: dict) -> T | None:
         session = self.session_factory()
@@ -73,6 +88,9 @@ class GenericRepository(Generic[T]):
                 session.expunge(instance)
 
             return instance
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
@@ -83,6 +101,9 @@ class GenericRepository(Generic[T]):
             if instance:
                 session.delete(instance)
                 session.commit()
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
@@ -107,6 +128,26 @@ class CompanyRepository(GenericRepository[Company]):
                 session.expunge(company)
 
             return company
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def list_with_details(self) -> list[Company]:
+        session = self.session_factory()
+        try:
+            instances = session.scalars(
+                select(self.model).options(
+                    selectinload(Company.applications),
+                    selectinload(Company.contacts),
+                )
+            ).all()
+            session.expunge_all()
+            return list(instances)
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
@@ -126,6 +167,8 @@ class CompanyRepository(GenericRepository[Company]):
                 session.expunge(company)
 
             return company
+        except Exception:
+            session.rollback()
         finally:
             session.close()
 
@@ -138,6 +181,9 @@ class CompanyRepository(GenericRepository[Company]):
             companies = session.scalars(statement).all()
             session.expunge_all()
             return list(companies)
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
@@ -163,46 +209,70 @@ class ApplicationRepository(GenericRepository[Application]):
                 session.expunge(application)
 
             return application
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def list_with_details(self) -> list[Application]:
+        session = self.session_factory()
+        try:
+            instances = session.scalars(
+                select(self.model).options(
+                    selectinload(Application.company),
+                    selectinload(Application.skills),
+                    selectinload(Application.contacts),
+                )
+            ).all()
+            session.expunge_all()
+            return list(instances)
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
     def get_by_title(self, title: str) -> Application | None:
         raise NotImplementedError
 
-    def _get_multiple(self, statement) -> list[Application]:
+    def _list_by(self, statement) -> list[Application]:
         session = self.session_factory()
         try:
             applications = list(session.scalars(statement).all())
             session.expunge_all()
             return applications
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
-    def get_by_company(self, company_id: int) -> list[Application]:
+    def list_by_company(self, company_id: int) -> list[Application]:
         statement = select(Application).where(Application.company_id == company_id)
-        return self._get_multiple(statement)
+        return self._list_by(statement)
 
-    def get_by_skill(self, skill: str) -> list[Application]:
+    def list_by_skill(self, skill: str) -> list[Application]:
         statement = (
             select(Application).join(Application.skills).where(Skill.name == skill)
         )
-        return self._get_multiple(statement)
+        return self._list_by(statement)
 
-    def get_by_contact(self, contact_id: int) -> list[Application]:
+    def list_by_contact(self, contact_id: int) -> list[Application]:
         statement = (
             select(Application)
             .join(Application.contacts)
             .where(Contact.id == contact_id)
         )
-        return self._get_multiple(statement)
+        return self._list_by(statement)
 
-    def get_by_status(self, status: Status) -> list[Application]:
+    def list_by_status(self, status: Status) -> list[Application]:
         statement = select(Application).where(Application.status == status)
-        return self._get_multiple(statement)
+        return self._list_by(statement)
 
-    def get_by_priority(self, priority: int) -> list[Application]:
+    def list_by_priority(self, priority: int) -> list[Application]:
         statement = select(Application).where(Application.priority == priority)
-        return self._get_multiple(statement)
+        return self._list_by(statement)
 
 
 class SkillRepository(GenericRepository[Skill]):
@@ -224,6 +294,25 @@ class SkillRepository(GenericRepository[Skill]):
                 session.expunge(skill)
 
             return skill
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def list_with_details(self) -> list[Skill]:
+        session = self.session_factory()
+        try:
+            instances = session.scalars(
+                select(self.model).options(
+                    selectinload(Skill.applications),
+                )
+            ).all()
+            session.expunge_all()
+            return list(instances)
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
@@ -248,6 +337,26 @@ class ContactRepository(GenericRepository[Contact]):
                 session.expunge(contact)
 
             return contact
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def list_with_details(self) -> list[Contact]:
+        session = self.session_factory()
+        try:
+            instances = session.scalars(
+                select(self.model).options(
+                    selectinload(Contact.applications),
+                    selectinload(Contact.companies),
+                )
+            ).all()
+            session.expunge_all()
+            return list(instances)
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
@@ -260,7 +369,7 @@ class ContactRepository(GenericRepository[Contact]):
     def get_by_website(self, website: str) -> Contact | None:
         raise NotImplementedError
 
-    def get_by_company(self, company_id: int) -> list[Contact]:
+    def list_by_company(self, company_id: int) -> list[Contact]:
         session = self.session_factory()
         try:
             statement = (
@@ -269,10 +378,13 @@ class ContactRepository(GenericRepository[Contact]):
             contacts = session.scalars(statement).all()
             session.expunge_all()
             return list(contacts)
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
-    def get_by_application(self, application_id: int) -> list[Contact]:
+    def list_by_application(self, application_id: int) -> list[Contact]:
         session = self.session_factory()
         try:
             statement = (
@@ -283,13 +395,19 @@ class ContactRepository(GenericRepository[Contact]):
             contacts = session.scalars(statement).all()
             session.expunge_all()
             return list(contacts)
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
-    def get_all_emails(self) -> list[str | None]:
+    def list_emails(self) -> set[str]:
         session = self.session_factory()
         try:
             statement = select(Contact.email).where(Contact.email.is_not(None))
-            return list(session.scalars(statement).all())
+            return set(session.scalars(statement).all())
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()

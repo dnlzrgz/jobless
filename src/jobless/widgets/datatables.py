@@ -13,8 +13,6 @@ T = TypeVar("T", bound=Base)
 class JoblessTable(DataTable, Generic[T]):
     MODEL: Type[T]
     COLUMNS: list[str]
-    LABEL: str
-    PLURAL: str | None = None
 
     BINDINGS = [
         Binding(
@@ -35,29 +33,24 @@ class JoblessTable(DataTable, Generic[T]):
     ] + DataTable.BINDINGS
 
     class Create(Message):
-        pass
+        def __init__(self, table: JoblessTable) -> None:
+            self.table = table
+            super().__init__()
 
     class Update(Message):
-        def __init__(self, id: int) -> None:
+        def __init__(self, table: JoblessTable, id: int) -> None:
+            self.table = table
             self.id = id
-
             super().__init__()
 
     class Delete(Message):
-        def __init__(
-            self,
-            id: int,
-            name: str,
-        ) -> None:
+        def __init__(self, table: JoblessTable, id: int) -> None:
+            self.table = table
             self.id = id
-            self.name = name
-
             super().__init__()
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-        self.border_title = self.PLURAL or f"{self.LABEL}s"
         self.cursor_type = "row"
         self.zebra_stripes = True
 
@@ -70,32 +63,32 @@ class JoblessTable(DataTable, Generic[T]):
     def item_to_row(self, item: T) -> tuple:
         raise NotImplementedError
 
+    def _get_current_row_id(self) -> int | None:
+        if self.cursor_row is not None:
+            row_data = self.get_row_at(self.cursor_row)
+            id = int(row_data[0])
+            return id
+
     def reload(self, rows: list[tuple]) -> None:
         self.clear()
         self.add_rows(rows)
         self.border_subtitle = f"{len(rows)}"
 
     def action_create(self) -> None:
-        self.post_message(self.Create())
+        self.post_message(self.Create(self))
 
     def action_update(self) -> None:
-        if self.cursor_row is not None:
-            row_data = self.get_row_at(self.cursor_row)
-            item_id = int(row_data[0])
-
-            self.post_message(self.Update(item_id))
+        if item_id := self._get_current_row_id():
+            self.post_message(self.Update(self, item_id))
 
     def action_delete(self) -> None:
-        if self.cursor_row is not None:
-            row_data = self.get_row_at(self.cursor_row)
-            item_id = int(row_data[0])
-            item_name = str(row_data[1])
-
-            self.post_message(self.Delete(item_id, item_name))
+        if item_id := self._get_current_row_id():
+            self.post_message(self.Delete(self, item_id))
 
 
 class CompanyTable(JoblessTable):
     MODEL = Company
+    BORDER_TITLE = "companies"
     COLUMNS = [
         "id",
         "name",
@@ -104,17 +97,6 @@ class CompanyTable(JoblessTable):
         "applications",
         "contacts",
     ]
-    LABEL = "company"
-    PLURAL = "companies"
-
-    class Create(JoblessTable.Create):
-        pass
-
-    class Update(JoblessTable.Update):
-        pass
-
-    class Delete(JoblessTable.Delete):
-        pass
 
     def item_to_row(self, item: Company) -> tuple:
         return (
@@ -129,6 +111,7 @@ class CompanyTable(JoblessTable):
 
 class ApplicationTable(JoblessTable):
     MODEL = Application
+    BORDER_TITLE = "applications"
     COLUMNS = [
         "id",
         "title",
@@ -140,16 +123,6 @@ class ApplicationTable(JoblessTable):
         "applied at",
         "last update at",
     ]
-    LABEL = "application"
-
-    class Create(JoblessTable.Create):
-        pass
-
-    class Update(JoblessTable.Update):
-        pass
-
-    class Delete(JoblessTable.Delete):
-        pass
 
     def item_to_row(self, item: Application) -> tuple:
         return (
@@ -167,6 +140,7 @@ class ApplicationTable(JoblessTable):
 
 class ContactTable(JoblessTable):
     MODEL = Contact
+    BORDER_TITLE = "contacts"
     COLUMNS = [
         "id",
         "name",
@@ -176,16 +150,6 @@ class ContactTable(JoblessTable):
         "companies",
         "applications",
     ]
-    LABEL = "contact"
-
-    class Create(JoblessTable.Create):
-        pass
-
-    class Update(JoblessTable.Update):
-        pass
-
-    class Delete(JoblessTable.Delete):
-        pass
 
     def item_to_row(self, item: Contact) -> tuple:
         return (

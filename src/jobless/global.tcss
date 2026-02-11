@@ -51,6 +51,7 @@ Select {
 SelectionList {
   border: none;
   min-height: 3;
+  max-height: 7;
   padding: 0;
 }
 

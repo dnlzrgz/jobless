@@ -62,8 +62,8 @@ def seed_data():
             Contact(
                 name=fake.name(),
                 email=fake.unique.email(),
-                phone=fake.phone_number(),
-                url=fake.url(),
+                phone=fake.unique.phone_number(),
+                url=fake.unique.url(),
             )
             for _ in range(randint(10, 50))
         ]
@@ -74,7 +74,7 @@ def seed_data():
         companies = [
             Company(
                 name=fake.unique.company(),
-                website=fake.url(),
+                website=fake.unique.url(),
                 industry=fake.bs(),
                 contacts=sample(contacts, randint(1, 2)),
             )
@@ -92,7 +92,7 @@ def seed_data():
                 description=fake.paragraph(),
                 salary_range=f"${randint(20, 50)}k - ${randint(110, 200)}k",
                 platform=choice(["LinkedIn", "Indeed", "Direct", "Referral"]),
-                url=fake.url(),
+                url=fake.unique.url(),
                 location_type=choice(list(Location)),
                 status=choice(list(Status)),
                 priority=randint(0, 4),

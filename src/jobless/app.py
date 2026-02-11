@@ -1,17 +1,20 @@
+from typing import Callable, Type, TypedDict
+
 from sqlalchemy.orm import sessionmaker
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import ScrollableContainer
+from textual.screen import Screen
 from textual.widgets import Footer
 
 from jobless.constants import APP_NAME
 from jobless.db import get_engine, init_db
-from jobless.models import Company
 from jobless.repositories import (
     ApplicationRepository,
     CompanyRepository,
     ContactRepository,
+    GenericRepository,
     SkillRepository,
 )
 from jobless.settings import Settings
@@ -19,12 +22,22 @@ from jobless.widgets.datatables import (
     ApplicationTable,
     CompanyTable,
     ContactTable,
+    JoblessTable,
 )
 from jobless.widgets.header import AppHeader
-from jobless.widgets.modals.confirmation_modal import ConfirmationModal
-from jobless.widgets.modals.create_modals import (
+from jobless.widgets.modals import (
+    ConfirmationModal,
+    CreateApplicationModal,
     CreateCompanyModal,
+    CreateContactModal,
 )
+
+
+class TableConfig(TypedDict):
+    instance: JoblessTable
+    repository: GenericRepository
+    label: str
+    create_modal_launcher: Callable[[], Screen]
 
 
 class JoblessApp(App):
@@ -70,253 +83,149 @@ class JoblessApp(App):
         yield AppHeader()
 
         with ScrollableContainer(classes="main"):
-            yield CompanyTable(classes="table")
-            yield ApplicationTable(classes="table")
-            yield ContactTable(classes="table")
+            self.company_table = CompanyTable(classes="table")
+            yield self.company_table
+
+            self.application_table = ApplicationTable(classes="table")
+            yield self.application_table
+
+            self.contact_table = ContactTable(classes="table")
+            yield self.contact_table
 
         yield Footer()
 
     def on_mount(self) -> None:
         self.theme = self.settings.theme
 
-        self.companies_table = self.query_one(CompanyTable)
-        self.applications_table = self.query_one(ApplicationTable)
-        self.contacts_table = self.query_one(ContactTable)
+        self.registry: dict[Type[JoblessTable], TableConfig] = {
+            CompanyTable: {
+                "instance": self.company_table,
+                "repository": self.company_repository,
+                "label": "company",
+                "create_modal_launcher": self._make_create_company_modal,
+            },
+            ApplicationTable: {
+                "instance": self.application_table,
+                "repository": self.application_repository,
+                "label": "application",
+                "create_modal_launcher": self._make_create_application_modal,
+            },
+            ContactTable: {
+                "instance": self.contact_table,
+                "repository": self.contact_repository,
+                "label": "contact",
+                "create_modal_launcher": self._make_create_contact_modal,
+            },
+        }
 
-        self.reload_tables()
+        self.action_reload()
 
     def action_reload(self) -> None:
-        self.reload_tables()
+        for config in self.registry.values():
+            self.reload_table(config)
 
-    @on(CompanyTable.Create)
-    def create_company(self) -> None:
-        with self.session() as session:
-            contacts = ContactRepository(session).get_all()
-            session.expunge_all()
-            self.session.remove()
+    def _make_create_company_modal(self) -> CreateCompanyModal:
+        companies = self.company_repository.list()
+        contacts = self.contact_repository.list()
 
-        def callback(company: Company | None) -> None:
-            if not company:
+        return CreateCompanyModal(
+            contacts=contacts,
+            known_names={co.name for co in companies},
+            known_websites={co.website for co in companies if co.website},
+        )
+
+    def _make_create_contact_modal(self) -> CreateContactModal:
+        know_emails = self.contact_repository.list_emails()
+        contacts = self.contact_repository.list()
+        companies = self.company_repository.list()
+        applications = self.application_repository.list()
+
+        return CreateContactModal(
+            companies=companies,
+            applications=applications,
+            known_phones={contact.phone for contact in contacts if contact.phone},
+            known_emails=know_emails,
+            known_urls={contact.url for contact in contacts if contact.url},
+        )
+
+    def _make_create_application_modal(self) -> CreateApplicationModal:
+        applications = self.contact_repository.list()
+        companies = self.company_repository.list()
+        contacts = self.contact_repository.list()
+
+        return CreateApplicationModal(
+            companies=companies,
+            contacts=contacts,
+            known_urls={
+                application.url for application in applications if application.url
+            },
+        )
+
+    @on(JoblessTable.Delete)
+    def handle_delete(self, message: JoblessTable.Delete) -> None:
+        config: TableConfig | None = self.registry.get(type(message.table))
+        if not config:
+            return
+
+        repository = config["repository"]
+        label = config["label"]
+
+        item = repository.get_by_id(message.id)
+        if not item:
+            self.notify(f"{label} not found!", severity="error")
+            return
+
+        def callback(result: dict | None) -> None:
+            if result:
+                repository.delete(item.id)
+                self.notify(f"{label} deleted!")
+                self.action_reload()
+
+        display_name = getattr(item, "name", getattr(item, "title", "name"))
+        self.push_screen(
+            ConfirmationModal(
+                message=f'delete {label} "{display_name}"?',
+            ),
+            callback,
+        )
+
+    @on(JoblessTable.Create)
+    def handle_create(self, message: JoblessTable.Create) -> None:
+        config: TableConfig | None = self.registry.get(type(message.table))
+        if not config:
+            return
+
+        label = config["label"]
+        repository = config["repository"]
+        create_modal = config["create_modal_launcher"]()
+
+        def callback(result: dict | None) -> None:
+            if not result:
                 return
 
-            with self.session() as session:
-                try:
-                    CompanyRepository(session).add(company)
-                    self.notify(f"company '{company.name}' added!")
-                except Exception as e:
-                    session.rollback()
-                    self.notify(f"{e}", severity="error")
-                    return
-                finally:
-                    self.session.remove()
+            try:
+                model_instance = repository.model(**result)
+                repository.add(model_instance)
+                self.notify(f"new {label} added!")
+                self.action_reload()
+            except Exception as e:
+                self.notify(f"could not add new {label}: {e}", severity="error")
 
-            self.reload_tables()
+        self.push_screen(create_modal, callback)
 
-        self.push_screen(
-            CreateCompanyModal(contacts=contacts, title="new company"),
-            callback=callback,
-        )
+    @work(thread=True)
+    def reload_table(self, config: dict) -> None:
+        table = config["instance"]
+        repository = config["repository"]
 
-    # @on(ApplicationTable.Create)
-    # def create_application(self) -> None:
-    #     with self.local_session() as session:
-    #         contacts = ContactRepository(session).get_all()
-    #         companies = CompanyRepository(session).get_all()
-    #         skills = SkillRepository(session).get_all()
-    #         session.expunge_all()
-    #
-    #     def callback(schema: ApplicationSchema | None) -> None:
-    #         if not schema:
-    #             return
-    #
-    #         with self.local_session() as session:
-    #             new_application = Application(
-    #                 **schema.model_dump(exclude={"contact_ids", "skill_names"})
-    #             )
-    #
-    #             if schema.contact_ids:
-    #                 new_application.contacts = ContactRepository(session).get_by_ids(
-    #                     schema.contact_ids
-    #                 )
-    #
-    #             if schema.skill_names:
-    #                 new_application.skills = SkillRepository(session).get_by_ids(
-    #                     schema.skill_names
-    #                 )
-    #
-    #             ApplicationRepository(session).add(new_application)
-    #             self.notify("new application added!")
-    #
-    #         self.reload_tables()
-    #
-    #     self.push_screen(
-    #         CreateApplicationModal(
-    #             contacts=contacts,
-    #             companies=companies,
-    #             skills=skills,
-    #             title="new application",
-    #         ),
-    #         callback=callback,
-    #     )
-    #
-    # @on(ContactTable.Create)
-    # def create_contact(self) -> None:
-    #     with self.local_session() as session:
-    #         applications = ApplicationRepository(session).get_all()
-    #         companies = CompanyRepository(session).get_all()
-    #         session.expunge_all()
-    #
-    #     def callback(schema: ContactSchema | None) -> None:
-    #         if not schema:
-    #             return
-    #
-    #         with self.local_session() as session:
-    #             new_contact = Contact(
-    #                 **schema.model_dump(exclude={"company_ids", "application_ids"})
-    #             )
-    #
-    #             if schema.application_ids:
-    #                 new_contact.applications = ApplicationRepository(
-    #                     session
-    #                 ).get_by_ids(schema.application_ids)
-    #
-    #             if schema.company_ids:
-    #                 new_contact.companies = CompanyRepository(session).get_by_ids(
-    #                     schema.company_ids
-    #                 )
-    #
-    #             ContactRepository(session).add(new_contact)
-    #             self.notify(f"new contact '{new_contact.name}' added!")
-    #
-    #         self.reload_tables()
-    #
-    #     self.push_screen(
-    #         CreateContactModal(
-    #             companies=companies, applications=applications, title="new contact"
-    #         ),
-    #         callback=callback,
-    #     )
-    #
-    # @on(CompanyTable.Update)
-    # def update_company(self, message: CompanyTable.Update) -> None:
-    #     with self.local_session() as session:
-    #         contacts = ContactRepository(session).get_all()
-    #         company = CompanyRepository(session).get_with_details(message.id)
-    #
-    #         if not company:
-    #             self.notify("company not found!", severity="error")
-    #             return
-    #
-    #         company_data = CompanySchema.model_validate(company)
-    #         company_data.contact_ids = [contact.id for contact in company.contacts]
-    #
-    #         self.session.expunge_all()
-    #
-    #     def callback(schema: CompanySchema | None) -> None:
-    #         if not schema:
-    #             return
-    #
-    #         with self.local_session() as session:
-    #             update_dict = schema.model_dump(exclude={"contact_ids"})
-    #             for key, val in update_dict.items():
-    #                 setattr(company, key, val)
-    #
-    #             company.contacts = ContactRepository(session).get_by_ids(
-    #                 schema.contact_ids
-    #             )
-    #
-    #             self.notify("company updated!")
-    #
-    #         self.reload_tables()
-    #
-    #     self.push_screen(
-    #         EditCompanyModal(
-    #             title="edit company",
-    #             instance=company_data,
-    #             contacts=contacts,
-    #         ),
-    #         callback=callback,
-    #     )
-    #
-    @on(CompanyTable.Delete)
-    def delete_company(self, message: CompanyTable.Delete) -> None:
-        def callback(confirmed: bool | None) -> None:
-            if confirmed:
-                with self.local_session() as session:
-                    CompanyRepository(session).delete(message.id)
-                    self.notify("company removed successfully!")
-
-                self.reload_tables()
-
-        self.push_screen(
-            ConfirmationModal(message=f'delete "{message.name}" from companies?'),
-            callback=callback,
-        )
-
-    @on(ApplicationTable.Delete)
-    def delete_application(self, message: ApplicationTable.Delete) -> None:
-        def callback(confirmed: bool | None) -> None:
-            if confirmed:
-                with self.local_session() as session:
-                    ApplicationRepository(session).delete(message.id)
-                    self.notify("application removed successfully!")
-
-                self.reload_tables()
-
-        self.push_screen(
-            ConfirmationModal(message=f'delete "{message.name}" from applications?'),
-            callback=callback,
-        )
-
-    @on(ContactTable.Delete)
-    def delete_contact(self, message: ContactTable.Delete) -> None:
-        def callback(confirmed: bool | None) -> None:
-            if confirmed:
-                with self.local_session() as session:
-                    ContactRepository(session).delete(message.id)
-                    self.notify("contact removed sucsessfully!")
-
-                self.reload_tables()
-
-        self.push_screen(
-            ConfirmationModal(message=f'delete "{message.name}" from contacts?'),
-            callback=callback,
-        )
-
-    @work(thread=True, exclusive=True)
-    def reload_tables(self) -> None:
-        tables = [self.applications_table, self.companies_table, self.contacts_table]
-
-        for table in tables:
-            self.call_from_thread(setattr, table, "loading", True)
+        self.call_from_thread(setattr, table, "loading", True)
 
         try:
-            with self.local_session() as session:
-                applications = ApplicationRepository(session).get_all()
-                companies = CompanyRepository(session).get_all()
-                contacts = ContactRepository(session).get_all()
-
-                self.call_from_thread(
-                    self.applications_table.reload,
-                    [
-                        self.applications_table.item_to_row(application)
-                        for application in applications
-                    ],
-                )
-                self.call_from_thread(
-                    self.companies_table.reload,
-                    [
-                        self.companies_table.item_to_row(company)
-                        for company in companies
-                    ],
-                )
-                self.call_from_thread(
-                    self.contacts_table.reload,
-                    [self.contacts_table.item_to_row(contact) for contact in contacts],
-                )
+            items = repository.list_with_details()
+            rows = [table.item_to_row(item) for item in items]
+            self.call_from_thread(table.reload, rows)
         finally:
-            for table in tables:
-                self.call_from_thread(setattr, table, "loading", False)
+            self.call_from_thread(setattr, table, "loading", False)
 
 
 if __name__ == "__main__":

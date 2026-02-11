@@ -23,7 +23,7 @@ def test_get_all(skill_repository):
     for skill in skills:
         skill_repository.add(skill)
 
-    skills_in_db = skill_repository.get_all()
+    skills_in_db = skill_repository.list()
     assert len(skills_in_db) == len(skills)
 
 
@@ -64,6 +64,7 @@ def test_get_application_with_details(
     )
 
     application_with_details = application_repository.get_with_details(application.id)
+
     assert application_with_details
     assert application_with_details.company.name == company.name
     assert application_with_details.created_at
@@ -83,7 +84,7 @@ def test_get_applications_by_status(faker, company_repository, application_repos
         Application(title="Job B", status=Status.INTERVIEWING, company_id=company.id)
     )
 
-    applied_only = application_repository.get_by_status(Status.APPLIED)
+    applied_only = application_repository.list_by_status(Status.APPLIED)
     assert len(applied_only) == 1
     assert applied_only[0].title == "Job A"
 
@@ -98,7 +99,7 @@ def test_get_all_emails_from_contacts(contact_repository, faker):
     # add contact without email just in case
     contact_repository.add(Contact(name=faker.name()))
 
-    emails = contact_repository.get_all_emails()
+    emails = contact_repository.list_emails()
     assert emails
     assert len(emails) == len(contacts_with_email)
 
