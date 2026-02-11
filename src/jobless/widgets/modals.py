@@ -121,13 +121,13 @@ class CreateCompanyModal(FormModal):
         self,
         contacts: list[Contact],
         known_names: set[str],
-        known_websites: set[str],
+        known_urls: set[str],
         *args,
         **kwargs,
     ) -> None:
         self.contacts = contacts
         self.known_names = known_names
-        self.known_websites = known_websites
+        self.known_urls = known_urls
         super().__init__(
             title="add a new company",
             *args,
@@ -141,10 +141,10 @@ class CreateCompanyModal(FormModal):
             id="name",
         )
 
-        yield Label("website")
+        yield Label("url")
         yield Input(
             placeholder="https://acme.com",
-            id="website",
+            id="url",
         )
 
         yield Label("industry")
@@ -167,7 +167,7 @@ class CreateCompanyModal(FormModal):
 
     def get_result(self) -> dict[str, Any] | None:
         name = self.query_one("#name", Input).value.strip()
-        website = self.query_one("#website", Input).value.strip() or None
+        url = self.query_one("#url", Input).value.strip() or None
 
         if not name:
             self.notify("name can not be empty!", severity="error")
@@ -179,9 +179,9 @@ class CreateCompanyModal(FormModal):
             self.query_one("#name", Input).focus()
             return None
 
-        if website and website in self.known_websites:
-            self.notify(f"the website '{website}' already exists!", severity="error")
-            self.query_one("#website", Input).focus()
+        if url and url in self.known_urls:
+            self.notify(f"the url '{url}' already exists!", severity="error")
+            self.query_one("#url", Input).focus()
             return None
 
         selected_contacts = self.query_one("#contacts", SelectionList).selected
@@ -191,7 +191,7 @@ class CreateCompanyModal(FormModal):
 
         return {
             "name": name,
-            "website": website,
+            "url": url,
             "industry": self.query_one("#industry", Input).value.strip() or None,
             "contacts": contacts,
             "notes": self.query_one("#notes", TextArea).text.strip() or None,

@@ -125,40 +125,40 @@ class JoblessApp(App):
             self.reload_table(config)
 
     def _make_create_company_modal(self) -> CreateCompanyModal:
-        companies = self.company_repository.list()
         contacts = self.contact_repository.list()
+        known_names = self.company_repository.list_names()
+        known_urls = self.company_repository.list_urls()
 
         return CreateCompanyModal(
             contacts=contacts,
-            known_names={co.name for co in companies},
-            known_websites={co.website for co in companies if co.website},
+            known_names=known_names,
+            known_urls=known_urls,
         )
 
     def _make_create_contact_modal(self) -> CreateContactModal:
-        know_emails = self.contact_repository.list_emails()
-        contacts = self.contact_repository.list()
         companies = self.company_repository.list()
         applications = self.application_repository.list()
+        known_phones = self.contact_repository.list_phones()
+        known_emails = self.contact_repository.list_emails()
+        known_urls = self.contact_repository.list_urls()
 
         return CreateContactModal(
             companies=companies,
             applications=applications,
-            known_phones={contact.phone for contact in contacts if contact.phone},
-            known_emails=know_emails,
-            known_urls={contact.url for contact in contacts if contact.url},
+            known_phones=known_phones,
+            known_emails=known_emails,
+            known_urls=known_urls,
         )
 
     def _make_create_application_modal(self) -> CreateApplicationModal:
-        applications = self.contact_repository.list()
         companies = self.company_repository.list()
         contacts = self.contact_repository.list()
+        known_urls = self.application_repository.list_urls()
 
         return CreateApplicationModal(
             companies=companies,
             contacts=contacts,
-            known_urls={
-                application.url for application in applications if application.url
-            },
+            known_urls=known_urls,
         )
 
     @on(JoblessTable.Delete)

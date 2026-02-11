@@ -1,4 +1,4 @@
-from jobless.models import Application, Company, Contact, Skill, Status
+from jobless.models import Application, Company, Contact, Skill
 
 
 def test_add(faker, skill_repository):
@@ -72,21 +72,6 @@ def test_get_application_with_details(
     assert hasattr(application_with_details, "skills")
     assert len(application_with_details.skills) == 1
     assert hasattr(application_with_details, "contacts")
-
-
-def test_get_applications_by_status(faker, company_repository, application_repository):
-    company = company_repository.add(Company(name=faker.company()))
-
-    application_repository.add(
-        Application(title="Job A", status=Status.APPLIED, company_id=company.id)
-    )
-    application_repository.add(
-        Application(title="Job B", status=Status.INTERVIEWING, company_id=company.id)
-    )
-
-    applied_only = application_repository.list_by_status(Status.APPLIED)
-    assert len(applied_only) == 1
-    assert applied_only[0].title == "Job A"
 
 
 def test_get_all_emails_from_contacts(contact_repository, faker):

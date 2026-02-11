@@ -74,7 +74,7 @@ def seed_data():
         companies = [
             Company(
                 name=fake.unique.company(),
-                website=fake.unique.url(),
+                url=fake.unique.url(),
                 industry=fake.bs(),
                 contacts=sample(contacts, randint(1, 2)),
             )

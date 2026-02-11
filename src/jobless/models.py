@@ -94,7 +94,7 @@ class Company(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, index=True, unique=True)
-    website: Mapped[str | None] = mapped_column(String, unique=True)
+    url: Mapped[str | None] = mapped_column(String, unique=True)
     industry: Mapped[str | None] = mapped_column(String)
 
     notes: Mapped[str | None] = mapped_column(String)

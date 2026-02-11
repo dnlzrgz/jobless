@@ -92,7 +92,7 @@ class CompanyTable(JoblessTable):
     COLUMNS = [
         "id",
         "name",
-        "website",
+        "url",
         "industry",
         "applications",
         "contacts",
@@ -102,7 +102,7 @@ class CompanyTable(JoblessTable):
         return (
             str(item.id),
             item.name,
-            item.website if item.website else "N/A",
+            item.url if item.url else "N/A",
             item.industry if item.industry else "N/A",
             str(len(item.applications)),
             str(len(item.contacts)),
