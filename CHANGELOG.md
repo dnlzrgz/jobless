@@ -1,3 +1,9 @@
+## 0.12.0 (2026-02-11)
+
+### Feat
+
+- **db**: improve unique values listing
+
 ## 0.11.0 (2026-02-11)
 
 ### Refactor
