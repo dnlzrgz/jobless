@@ -43,8 +43,8 @@ application_skill_link = Table(
         primary_key=True,
     ),
     Column(
-        "skill_name",
-        ForeignKey("skills.name", ondelete="CASCADE"),
+        "skill_id",
+        ForeignKey("skills.id", ondelete="CASCADE"),
         primary_key=True,
     ),
 )
@@ -122,7 +122,7 @@ class Application(Base, TimestampMixin):
 
     platform: Mapped[str | None] = mapped_column(String)
     url: Mapped[str | None] = mapped_column(String, unique=True)
-    address: Mapped[str | None] = mapped_column(String)
+    address: Mapped[str | None] = mapped_column(String, unique=True)
     location_type: Mapped[Location] = mapped_column(String, default=Location.ON_SITE)
     status: Mapped[Status] = mapped_column(String, default=Status.SAVED, index=True)
     priority: Mapped[int] = mapped_column(Integer, default=0)
@@ -148,7 +148,8 @@ class Application(Base, TimestampMixin):
 class Skill(Base, TimestampMixin):
     __tablename__ = "skills"
 
-    name: Mapped[str] = mapped_column(String, primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, index=True, unique=True)
 
     applications: Mapped[list[Application]] = relationship(
         back_populates="skills",
@@ -178,6 +179,9 @@ class Contact(Base, TimestampMixin):
 
     @validates("email")
     def validate_email(self, key, email):
+        if not email:
+            return
+
         try:
             email_info = validate_email(email, check_deliverability=False)
             return email_info.normalized
