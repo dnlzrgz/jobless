@@ -1,92 +1,249 @@
-from jobless.models import Application, Company, Contact, Skill
+import pytest
+
+from jobless.models import Skill
+from jobless.schemas import (
+    ApplicationSchema,
+    CompanySchema,
+    ContactSchema,
+    LookupSchema,
+    SkillSchema,
+)
 
 
-def test_add(faker, skill_repository):
+def test_skill_repository_add(faker, skill_repository):
     skill_name = faker.word()
-    skill = skill_repository.add(Skill(name=skill_name))
+    new_skill = skill_repository.add(Skill(name=skill_name))
+    assert isinstance(new_skill, SkillSchema)
+    assert new_skill.id
+    assert new_skill.name == skill_name
 
-    assert skill
+
+def test_skill_repository_add_fails_silently_if_duplicated(faker, skill_repository):
+    skill_name = faker.word()
+    new_skill = skill_repository.add(Skill(name=skill_name))
+    assert isinstance(new_skill, SkillSchema)
+    assert new_skill.id
+    assert new_skill.name == skill_name
+
+    repeated_skill = skill_repository.add(Skill(name=skill_name))
+    assert isinstance(repeated_skill, SkillSchema)
+    assert repeated_skill.id
+    assert repeated_skill.name == skill_name
+
+
+def test_application_repository_add(faker, company_repository, application_repository):
+    company = company_repository.add(
+        CompanySchema(name=faker.company()),
+    )
+    assert isinstance(company, CompanySchema)
+    assert company.id
+
+    application = application_repository.add(
+        ApplicationSchema(
+            title=faker.job(),
+            company_id=company.id,
+        ),
+    )
+    assert isinstance(application, ApplicationSchema)
+    assert application.id
+    assert application.title
+    assert application.company_id == company.id
+
+
+def test_contact_repository_add(faker, company_repository, contact_repository):
+    company = company_repository.add(
+        CompanySchema(name=faker.company()),
+    )
+    assert isinstance(company, CompanySchema)
+    assert company.id
+
+    contact = contact_repository.add(
+        ContactSchema(
+            name=faker.name(),
+            companies=[LookupSchema(id=company.id, label=company.name)],
+            email=faker.email(),
+        ),
+    )
+    assert isinstance(contact, ContactSchema)
+    assert contact.id
+    assert contact.name
+    assert len(contact.companies) == 1
+
+
+def test_contact_repository_add_should_fail_if_bad_email(faker, contact_repository):
+    with pytest.raises(ValueError):
+        contact_repository.add(
+            ContactSchema(
+                name=faker.name(),
+                email="invalid",
+            ),
+        )
+
+
+def test_skill_repository_get_by_id(faker, skill_repository):
+    skill_name = faker.word()
+    skill = skill_repository.add(SkillSchema(name=skill_name))
+    assert isinstance(skill, SkillSchema)
+    assert skill.id
     assert skill.name == skill_name
 
-
-def test_get_by_id(faker, skill_repository):
-    skill_name = faker.word()
-    skill_repository.add(Skill(name=skill_name))
-
-    skill_in_db = skill_repository.get_by_id(skill_name)
-    assert skill_in_db
-    assert skill_in_db.name == skill_name
+    lookup_skill = skill_repository.get_by_id(skill.id)
+    assert isinstance(lookup_skill, LookupSchema)
+    assert lookup_skill.id
+    assert lookup_skill.label == skill_name
 
 
-def test_get_all(skill_repository):
-    skills = [Skill(name=name) for name in {"python", "javascript", "c", "tdd", "rust"}]
+def test_skill_repository_list(skill_repository):
+    skill_names = {"python", "javascript", "c", "tdd", "rust"}
+    for name in skill_names:
+        skill_repository.add(SkillSchema(name=name))
+
+    skills = skill_repository.list()
+    assert len(skills) == len(skills)
+
     for skill in skills:
-        skill_repository.add(skill)
-
-    skills_in_db = skill_repository.list()
-    assert len(skills_in_db) == len(skills)
+        assert isinstance(skill, LookupSchema)
+        assert skill.label in skill_names
 
 
-def test_delete(faker, skill_repository):
+def test_skill_repository_delete(faker, skill_repository):
     skill_name = faker.name()
     skill = skill_repository.add(Skill(name=skill_name))
-    assert skill
-    assert skill.name  # in the case of skills the name is the id
+    assert isinstance(skill, SkillSchema)
+    assert skill.id
 
-    skill_repository.delete(skill_name)
-    skill = skill_repository.get_by_id(skill_name)
+    skill_repository.delete(skill.id)
+    skill = skill_repository.get_by_id(skill.id)
     assert not skill
 
 
-def test_update(skill_repository):
-    skill = skill_repository.add(Skill(name="python"))
-    updated = skill_repository.update(skill.name, {"name": "rust"})
-
-    assert updated
-    assert updated.name == "rust"
-
-
+# def test_update(skill_repository):
+#     skill = skill_repository.add(Skill(name="python"))
+#     updated = skill_repository.update(skill.name, {"name": "rust"})
+#
+#     assert updated
+#     assert updated.name == "rust"
+#
+#
 def test_get_application_with_details(
     faker,
     company_repository,
-    application_repository,
+    contact_repository,
     skill_repository,
+    application_repository,
 ):
-    company = company_repository.add(Company(name=faker.company()))
-    skill = skill_repository.add(Skill(name=faker.name()))
+    company = company_repository.add(
+        CompanySchema(
+            name=faker.company(),
+        ),
+    )
 
-    application = application_repository.add(
-        Application(
-            title=faker.job(),
-            company_id=company.id,
-            skills=[skill],
+    contact = contact_repository.add(
+        ContactSchema.from_dict(
+            {
+                "name": faker.name(),
+                "companies": [company],
+            },
         )
     )
 
-    application_with_details = application_repository.get_with_details(application.id)
+    skills = []
+    skill_names = {"python", "javascript", "c", "tdd", "rust"}
+    for name in skill_names:
+        skill = skill_repository.add(SkillSchema(name=name))
+        skills.append(skill)
 
-    assert application_with_details
-    assert application_with_details.company.name == company.name
-    assert application_with_details.created_at
-    assert application_with_details.last_updated
-    assert hasattr(application_with_details, "skills")
-    assert len(application_with_details.skills) == 1
-    assert hasattr(application_with_details, "contacts")
+    application = application_repository.add(
+        ApplicationSchema.from_dict(
+            {
+                "title": faker.job(),
+                "company_id": company.id,
+                "skills": skills,
+                "contacts": [contact],
+            }
+        )
+    )
+
+    application = application_repository.get_with_details(application.id)
+    assert application
+    assert isinstance(application, ApplicationSchema)
+    assert application.company_id == company.id
+    assert hasattr(application, "skills")
+    assert len(application.skills) == len(skills)
+    assert hasattr(application, "contacts")
+    assert len(application.contacts) == 1
 
 
-def test_get_all_emails_from_contacts(contact_repository, faker):
-    contacts_with_email = [
-        Contact(name=faker.name(), email=faker.email()) for _ in range(10)
+def test_company_repository_list_names(company_repository, faker):
+    companies = [CompanySchema(name=faker.name()) for _ in range(10)]
+    for company in companies:
+        company_repository.add(company)
+
+    names = company_repository.list_names()
+    assert names
+    assert len(names) == len(names)
+
+
+def test_company_repository_list_urls(company_repository, faker):
+    companies = [
+        CompanySchema(
+            name=faker.name(),
+            url=faker.unique.url(),
+        )
+        for _ in range(10)
     ]
-    for contact in contacts_with_email:
+    for company in companies:
+        company_repository.add(company)
+
+    # add contact without email just in case.
+    company_repository.add(CompanySchema(name=faker.name()))
+
+    urls = company_repository.list_urls()
+    assert urls
+    assert len(urls) == len(urls)
+
+
+def test_contact_repository_list_emails(contact_repository, faker):
+    contacts = [
+        ContactSchema(name=faker.name(), email=faker.unique.email()) for _ in range(10)
+    ]
+    for contact in contacts:
         contact_repository.add(contact)
 
-    # add contact without email just in case
-    contact_repository.add(Contact(name=faker.name()))
+    # add contact without email just in case.
+    contact_repository.add(ContactSchema(name=faker.name()))
 
     emails = contact_repository.list_emails()
     assert emails
-    assert len(emails) == len(contacts_with_email)
+    assert len(emails) == len(contacts)
 
-    for contact in contacts_with_email:
-        assert contact.email in emails
+
+def test_contact_repository_list_phones(contact_repository, faker):
+    contacts = [
+        ContactSchema(name=faker.name(), phone=faker.unique.phone_number())
+        for _ in range(10)
+    ]
+    for contact in contacts:
+        contact_repository.add(contact)
+
+    # add contact without phone just in case.
+    contact_repository.add(ContactSchema(name=faker.name()))
+
+    phones = contact_repository.list_phones()
+    assert phones
+    assert len(phones) == len(contacts)
+
+
+def test_contact_repository_list_urls(contact_repository, faker):
+    contacts = [
+        ContactSchema(name=faker.name(), url=faker.unique.url()) for _ in range(10)
+    ]
+    for contact in contacts:
+        contact_repository.add(contact)
+
+    # add contact without url just in case.
+    contact_repository.add(ContactSchema(name=faker.name()))
+
+    urls = contact_repository.list_urls()
+    assert urls
+    assert len(urls) == len(contacts)

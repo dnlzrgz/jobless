@@ -1,56 +1,60 @@
+from dataclasses import fields
 from typing import Any, Generic, TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, selectinload, sessionmaker
 
 from jobless.models import Application, Base, Company, Contact, Skill
+from jobless.schemas import (
+    ApplicationSchema,
+    BaseSchema,
+    CompanySchema,
+    ContactSchema,
+    LookupSchema,
+    SkillSchema,
+)
 
 T = TypeVar("T", bound=Base)
+S = TypeVar("S", bound=BaseSchema)
 
 
-class GenericRepository(Generic[T]):
-    def __init__(self, model: type[T], session_factory: sessionmaker):
+class GenericRepository(Generic[T, S]):
+    def __init__(self, model: type[T], schema: type[S], session_factory: sessionmaker):
         self.model = model
+        self.schema = schema
         self.session_factory = session_factory
 
-    def add(self, instance: T) -> T:
-        session = self.session_factory()
-        try:
-            session.add(instance)
-            session.commit()
-            session.refresh(instance)
-            session.expunge(instance)
-            return instance
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
+    def _get_model_kwargs(self, schema: S) -> dict:
+        return {
+            f.name: getattr(schema, f.name)
+            for f in fields(schema)
+            if f.name != "id" and not isinstance(getattr(schema, f.name), list)
+        }
 
-    def get_by_id(self, id: int | str) -> T | None:
+    def add(self, schema: S) -> S:
+        raise NotImplementedError
+
+    def get_by_id(self, id: int) -> LookupSchema | None:
         session = self.session_factory()
         try:
             instance = session.get(self.model, id)
             if instance:
-                session.expunge(instance)
-
-            return instance
+                return LookupSchema.from_model(instance)
         finally:
             session.close()
 
-    def get_with_details(self, id: int | str) -> T | None:
+    def get_with_details(self, id: int) -> S | None:
         raise NotImplementedError
 
-    def list(self) -> list[T]:
+    def list(self) -> list[LookupSchema]:
         session = self.session_factory()
         try:
             instances = session.scalars(select(self.model)).all()
-            session.expunge_all()
-            return list(instances)
+            return [LookupSchema.from_model(instance) for instance in instances]
         finally:
             session.close()
 
-    def list_with_details(self) -> list[T]:
+    def list_with_details(self) -> list[S]:
         raise NotImplementedError
 
     def _list_unique_values(self, column: Any) -> set[Any]:
@@ -61,26 +65,13 @@ class GenericRepository(Generic[T]):
         finally:
             session.close()
 
-    def update(self, id: int | str, data: dict) -> T | None:
+    def update(self, id: int, old_schema: S, new_schema: S) -> S | None:
+        raise NotImplementedError
+
+    def delete(self, id: int) -> None:
         session = self.session_factory()
         try:
             instance = session.get(self.model, id)
-            if instance:
-                for key, value in data.items():
-                    setattr(instance, key, value)
-
-                session.commit()
-                session.refresh(instance)
-                session.expunge(instance)
-
-            return instance
-        finally:
-            session.close()
-
-    def delete(self, id: int | str) -> None:
-        session = self.session_factory()
-        try:
-            instance = self.get_by_id(id)
             if instance:
                 session.delete(instance)
                 session.commit()
@@ -91,11 +82,32 @@ class GenericRepository(Generic[T]):
             session.close()
 
 
-class CompanyRepository(GenericRepository[Company]):
+class CompanyRepository(GenericRepository[Company, CompanySchema]):
     def __init__(self, session_factory: sessionmaker):
-        super().__init__(Company, session_factory)
+        super().__init__(Company, CompanySchema, session_factory)
 
-    def get_with_details(self, id: int | str) -> Company | None:
+    def add(self, schema: CompanySchema) -> CompanySchema:
+        session = self.session_factory()
+        try:
+            company = Company(**self._get_model_kwargs(schema))
+
+            if schema.contacts:
+                ids = [contact.id for contact in schema.contacts]
+                company.contacts = (
+                    session.query(Contact).filter(Contact.id.in_(ids)).all()
+                )
+
+            session.add(company)
+            session.commit()
+
+            return CompanySchema.from_model(company)
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def get_with_details(self, id: int) -> CompanySchema | None:
         session = self.session_factory()
         try:
             statement = (
@@ -108,13 +120,11 @@ class CompanyRepository(GenericRepository[Company]):
             )
             company = session.scalars(statement).one_or_none()
             if company:
-                session.expunge(company)
-
-            return company
+                return CompanySchema.from_model(company)
         finally:
             session.close()
 
-    def list_with_details(self) -> list[Company]:
+    def list_with_details(self) -> list[CompanySchema]:
         session = self.session_factory()
         try:
             instances = session.scalars(
@@ -123,8 +133,8 @@ class CompanyRepository(GenericRepository[Company]):
                     selectinload(Company.contacts),
                 )
             ).all()
-            session.expunge_all()
-            return list(instances)
+
+            return [CompanySchema.from_model(instance) for instance in instances]
         finally:
             session.close()
 
@@ -135,11 +145,38 @@ class CompanyRepository(GenericRepository[Company]):
         return self._list_unique_values(Company.url)
 
 
-class ApplicationRepository(GenericRepository[Application]):
+class ApplicationRepository(GenericRepository[Application, ApplicationSchema]):
     def __init__(self, session_factory: sessionmaker):
-        super().__init__(Application, session_factory)
+        super().__init__(Application, ApplicationSchema, session_factory)
 
-    def get_with_details(self, id: int | str) -> Application | None:
+    def add(self, schema: ApplicationSchema) -> ApplicationSchema:
+        session = self.session_factory()
+        try:
+            application = Application(**self._get_model_kwargs(schema))
+
+            if schema.skills:
+                ids = [skill.id for skill in schema.skills]
+                application.skills = (
+                    session.query(Skill).filter(Skill.id.in_(ids)).all()
+                )
+
+            if schema.contacts:
+                ids = [contact.id for contact in schema.contacts]
+                application.contacts = (
+                    session.query(Contact).filter(Contact.id.in_(ids)).all()
+                )
+
+            session.add(application)
+            session.commit()
+
+            return ApplicationSchema.from_model(application)
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def get_with_details(self, id: int) -> ApplicationSchema | None:
         session = self.session_factory()
         try:
             statement = (
@@ -151,15 +188,13 @@ class ApplicationRepository(GenericRepository[Application]):
                     selectinload(Application.contacts),
                 )
             )
-            application = session.scalars(statement).one_or_none()
-            if application:
-                session.expunge(application)
-
-            return application
+            instance = session.scalars(statement).one_or_none()
+            if instance:
+                return ApplicationSchema.from_model(instance)
         finally:
             session.close()
 
-    def list_with_details(self) -> list[Application]:
+    def list_with_details(self) -> list[ApplicationSchema]:
         session = self.session_factory()
         try:
             instances = session.scalars(
@@ -169,8 +204,8 @@ class ApplicationRepository(GenericRepository[Application]):
                     selectinload(Application.contacts),
                 )
             ).all()
-            session.expunge_all()
-            return list(instances)
+
+            return [ApplicationSchema.from_model(instance) for instance in instances]
         finally:
             session.close()
 
@@ -178,29 +213,54 @@ class ApplicationRepository(GenericRepository[Application]):
         return self._list_unique_values(Application.url)
 
 
-class SkillRepository(GenericRepository[Skill]):
+class SkillRepository(GenericRepository[Skill, SkillSchema]):
     def __init__(self, session_factory: sessionmaker):
-        super().__init__(Skill, session_factory)
+        super().__init__(Skill, SkillSchema, session_factory)
 
-    def get_with_details(self, id: int | str) -> Skill | None:
+    def add(self, schema: SkillSchema) -> SkillSchema:
+        session = self.session_factory()
+        try:
+            existing_skill = session.scalar(
+                select(Skill).where(Skill.name == schema.name)
+            )
+            if existing_skill:
+                return SkillSchema.from_model(existing_skill)
+
+            new_skill = Skill(id=schema.id, name=schema.name)
+
+            if schema.applications:
+                ids = [application.id for application in schema.applications]
+                new_skill.applications = (
+                    session.query(Application).filter(Application.id.in_(ids)).all()
+                )
+
+            session.add(new_skill)
+            session.commit()
+
+            return SkillSchema.from_model(new_skill)
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def get_with_details(self, id: int) -> SkillSchema | None:
         session = self.session_factory()
         try:
             statement = (
                 select(Skill)
-                .where(Skill.name == id)
+                .where(Skill.id == id)
                 .options(
                     selectinload(Skill.applications),
                 )
             )
-            skill = session.scalars(statement).one_or_none()
-            if skill:
-                session.expunge(skill)
-
-            return skill
+            instance = session.scalars(statement).one_or_none()
+            if instance:
+                return SkillSchema.from_model(instance)
         finally:
             session.close()
 
-    def list_with_details(self) -> list[Skill]:
+    def list_with_details(self) -> list[SkillSchema]:
         session = self.session_factory()
         try:
             instances = session.scalars(
@@ -208,17 +268,44 @@ class SkillRepository(GenericRepository[Skill]):
                     selectinload(Skill.applications),
                 )
             ).all()
-            session.expunge_all()
-            return list(instances)
+
+            return [SkillSchema.from_model(instance) for instance in instances]
         finally:
             session.close()
 
 
-class ContactRepository(GenericRepository[Contact]):
+class ContactRepository(GenericRepository[Contact, ContactSchema]):
     def __init__(self, session_factory: sessionmaker):
-        super().__init__(Contact, session_factory)
+        super().__init__(Contact, ContactSchema, session_factory)
 
-    def get_with_details(self, id: int | str) -> Contact | None:
+    def add(self, schema: ContactSchema) -> ContactSchema:
+        session = self.session_factory()
+        try:
+            contact = Contact(**self._get_model_kwargs(schema))
+
+            if schema.companies:
+                ids = [company.id for company in schema.companies]
+                contact.companies = (
+                    session.query(Company).filter(Company.id.in_(ids)).all()
+                )
+
+            if schema.applications:
+                ids = [application.id for application in schema.applications]
+                contact.applications = (
+                    session.query(Application).filter(Application.id.in_(ids)).all()
+                )
+
+            session.add(contact)
+            session.commit()
+
+            return ContactSchema.from_model(contact)
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def get_with_details(self, id: int) -> ContactSchema | None:
         session = self.session_factory()
         try:
             statement = (
@@ -229,15 +316,13 @@ class ContactRepository(GenericRepository[Contact]):
                     selectinload(Contact.companies),
                 )
             )
-            contact = session.scalars(statement).one_or_none()
-            if contact:
-                session.expunge(contact)
-
-            return contact
+            instance = session.scalars(statement).one_or_none()
+            if instance:
+                return ContactSchema.from_model(instance)
         finally:
             session.close()
 
-    def list_with_details(self) -> list[Contact]:
+    def list_with_details(self) -> list[ContactSchema]:
         session = self.session_factory()
         try:
             instances = session.scalars(
@@ -246,8 +331,8 @@ class ContactRepository(GenericRepository[Contact]):
                     selectinload(Contact.companies),
                 )
             ).all()
-            session.expunge_all()
-            return list(instances)
+
+            return [ContactSchema.from_model(instance) for instance in instances]
         finally:
             session.close()
 

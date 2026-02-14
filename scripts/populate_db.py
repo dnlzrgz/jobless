@@ -17,7 +17,7 @@ except ImportError:
     sys.exit(1)
 
 fake = Faker()
-TECH_SKILLS = {
+SKILLS = {
     "python",
     "rust",
     "sql",
@@ -54,7 +54,7 @@ def seed_data():
         print(f"✨ Starting seed for: {SETTINGS.db_url}")
 
         print("🌱 Adding skills...")
-        skills = [Skill(name=name) for name in TECH_SKILLS]
+        skills = [Skill(name=name) for name in SKILLS]
         session.add_all(skills)
 
         print("🌱 Adding contacts...")
