@@ -25,11 +25,18 @@ class GenericRepository(Generic[T, S]):
         self.session_factory = session_factory
 
     def _get_model_kwargs(self, schema: S) -> dict:
-        return {
-            f.name: getattr(schema, f.name)
-            for f in fields(schema)
-            if f.name != "id" and not isinstance(getattr(schema, f.name), list)
-        }
+        model_kwargs = {}
+        for f in fields(schema):
+            if f.name == "id" or isinstance(getattr(schema, f.name), list):
+                continue
+
+            value = getattr(schema, f.name)
+            if isinstance(value, BaseSchema):
+                model_kwargs[f"{f.name}_id"] = value.id
+            else:
+                model_kwargs[f.name] = value
+
+        return model_kwargs
 
     def add(self, schema: S) -> S:
         raise NotImplementedError

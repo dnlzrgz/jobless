@@ -41,13 +41,16 @@ def test_application_repository_add(faker, company_repository, application_repos
     application = application_repository.add(
         ApplicationSchema(
             title=faker.job(),
-            company_id=company.id,
+            company=LookupSchema(
+                id=company.id,
+                label=company.name,
+            ),
         ),
     )
     assert isinstance(application, ApplicationSchema)
     assert application.id
     assert application.title
-    assert application.company_id == company.id
+    assert application.company.id == company.id
 
 
 def test_contact_repository_add(faker, company_repository, contact_repository):
@@ -123,8 +126,8 @@ def test_skill_repository_delete(faker, skill_repository):
 #
 #     assert updated
 #     assert updated.name == "rust"
-#
-#
+
+
 def test_get_application_with_details(
     faker,
     company_repository,
@@ -157,7 +160,7 @@ def test_get_application_with_details(
         ApplicationSchema.from_dict(
             {
                 "title": faker.job(),
-                "company_id": company.id,
+                "company": LookupSchema(id=company.id, label=company.name),
                 "skills": skills,
                 "contacts": [contact],
             }
@@ -167,7 +170,8 @@ def test_get_application_with_details(
     application = application_repository.get_with_details(application.id)
     assert application
     assert isinstance(application, ApplicationSchema)
-    assert application.company_id == company.id
+    assert application.company.id == company.id
+    assert application.company.label == company.name
     assert hasattr(application, "skills")
     assert len(application.skills) == len(skills)
     assert hasattr(application, "contacts")

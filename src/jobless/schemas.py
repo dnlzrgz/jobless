@@ -166,7 +166,7 @@ class ApplicationSchema(BaseSchema):
     date_applied: date | None = None
     follow_up_date: date | None = None
     notes: str | None = None
-    company_id: int
+    company: LookupSchema
 
     contacts: list[LookupSchema] = field(default_factory=list)
     skills: list[LookupSchema] = field(default_factory=list)
@@ -187,7 +187,7 @@ class ApplicationSchema(BaseSchema):
             date_applied=model.date_applied,
             follow_up_date=model.follow_up_date,
             notes=model.notes,
-            company_id=model.company_id,
+            company=LookupSchema.from_model(model.company),
             contacts=[LookupSchema.from_model(contact) for contact in model.contacts],
             skills=[LookupSchema.from_model(skill) for skill in model.skills],
         )
@@ -197,8 +197,9 @@ class ApplicationSchema(BaseSchema):
         application_title = data.get("title")
         assert isinstance(application_title, str)
 
-        company_id = data.get("company_id")
-        assert isinstance(company_id, int)
+        company = data.get("company")
+        assert company
+        assert company.id
 
         applied = data.get("date_applied")
         follow_up = data.get("follow_up_date")
@@ -221,7 +222,7 @@ class ApplicationSchema(BaseSchema):
             if isinstance(follow_up, str)
             else follow_up,
             notes=data.get("notes", None),
-            company_id=company_id,
+            company=company,
             contacts=data.get("contacts", []),
             skills=data.get("skills", []),
         )

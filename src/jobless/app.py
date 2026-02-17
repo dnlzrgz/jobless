@@ -10,7 +10,6 @@ from textual.widgets import Footer
 
 from jobless.constants import APP_NAME
 from jobless.db import get_engine, init_db
-from jobless.models import Application, Company, Contact
 from jobless.repositories import (
     ApplicationRepository,
     CompanyRepository,
@@ -18,6 +17,7 @@ from jobless.repositories import (
     GenericRepository,
     SkillRepository,
 )
+from jobless.schemas import ApplicationSchema, CompanySchema, ContactSchema
 from jobless.settings import Settings
 from jobless.widgets.datatables import (
     ApplicationTable,
@@ -161,15 +161,17 @@ class JoblessApp(App):
     def _make_create_application_modal(self) -> CreateApplicationModal:
         companies = self.company_repository.list()
         contacts = self.contact_repository.list()
+        skills = self.skill_repository.list()
         known_urls = self.application_repository.list_urls()
 
         return CreateApplicationModal(
             companies=companies,
             contacts=contacts,
+            skills=skills,
             known_urls=known_urls,
         )
 
-    def _make_update_company_modal(self, company: Company) -> UpdateCompanyModal:
+    def _make_update_company_modal(self, company: CompanySchema) -> UpdateCompanyModal:
         contacts = self.contact_repository.list()
         known_names = self.company_repository.list_names()
         known_urls = self.company_repository.list_urls()
@@ -181,7 +183,7 @@ class JoblessApp(App):
             known_urls=known_urls,
         )
 
-    def _make_update_contact_modal(self, contact: Contact) -> UpdateContactModal:
+    def _make_update_contact_modal(self, contact: ContactSchema) -> UpdateContactModal:
         companies = self.company_repository.list()
         applications = self.application_repository.list()
         known_phones = self.contact_repository.list_phones()
@@ -199,16 +201,18 @@ class JoblessApp(App):
 
     def _make_update_application_modal(
         self,
-        application: Application,
+        application: ApplicationSchema,
     ) -> UpdateApplicationModal:
         companies = self.company_repository.list()
         contacts = self.contact_repository.list()
+        skills = self.skill_repository.list()
         known_urls = self.application_repository.list_urls()
 
         return UpdateApplicationModal(
             instance=application,
             companies=companies,
             contacts=contacts,
+            skills=skills,
             known_urls=known_urls,
         )
 
@@ -227,8 +231,7 @@ class JoblessApp(App):
                 return
 
             try:
-                model_instance = repository.model(**result)
-                repository.add(model_instance)
+                repository.add(repository.schema.from_dict(result))
                 self.notify(f"new {label} added!")
                 self.action_reload()
             except Exception as e:
@@ -282,7 +285,7 @@ class JoblessApp(App):
 
         def callback(result: dict | None) -> None:
             if result:
-                repository.delete(item.id)
+                repository.delete(message.id)
                 self.notify(f"{label} deleted!")
                 self.action_reload()
 

@@ -5,13 +5,14 @@ from textual.binding import Binding
 from textual.message import Message
 from textual.widgets import DataTable
 
-from jobless.models import Application, Base, Company, Contact
-
-T = TypeVar("T", bound=Base)
+from jobless.schemas import ApplicationSchema, BaseSchema, CompanySchema, ContactSchema
 
 
-class JoblessTable(DataTable, Generic[T]):
-    MODEL: Type[T]
+S = TypeVar("S", bound=BaseSchema)
+
+
+class JoblessTable(DataTable, Generic[S]):
+    SCHEMA: Type[S]
     COLUMNS: list[str]
 
     BINDINGS = [
@@ -60,7 +61,7 @@ class JoblessTable(DataTable, Generic[T]):
     def format_date(self, dt: date | None = None) -> str:
         return dt.strftime("%Y-%m-%d") if dt else "N/A"
 
-    def item_to_row(self, item: T) -> tuple:
+    def item_to_row(self, item: S) -> tuple:
         raise NotImplementedError
 
     def _get_current_row_id(self) -> int | None:
@@ -87,7 +88,7 @@ class JoblessTable(DataTable, Generic[T]):
 
 
 class CompanyTable(JoblessTable):
-    MODEL = Company
+    SCHEMA = CompanySchema
     BORDER_TITLE = "companies"
     COLUMNS = [
         "id",
@@ -98,7 +99,7 @@ class CompanyTable(JoblessTable):
         "contacts",
     ]
 
-    def item_to_row(self, item: Company) -> tuple:
+    def item_to_row(self, item: CompanySchema) -> tuple:
         return (
             str(item.id),
             item.name,
@@ -110,7 +111,7 @@ class CompanyTable(JoblessTable):
 
 
 class ApplicationTable(JoblessTable):
-    MODEL = Application
+    SCHEMA = ApplicationSchema
     BORDER_TITLE = "applications"
     COLUMNS = [
         "id",
@@ -124,22 +125,22 @@ class ApplicationTable(JoblessTable):
         "last update at",
     ]
 
-    def item_to_row(self, item: Application) -> tuple:
+    def item_to_row(self, item: ApplicationSchema) -> tuple:
         return (
             str(item.id),
             item.title,
-            item.company.name,
+            item.company.label,
             item.status,
             str(item.priority),
             str(len(item.contacts)),
-            ", ".join(skill.name for skill in item.skills),
+            ", ".join(skill.label for skill in item.skills),
             self.format_date(item.date_applied),
             self.format_date(item.follow_up_date),
         )
 
 
 class ContactTable(JoblessTable):
-    MODEL = Contact
+    SCHEMA = ContactSchema
     BORDER_TITLE = "contacts"
     COLUMNS = [
         "id",
@@ -151,7 +152,7 @@ class ContactTable(JoblessTable):
         "applications",
     ]
 
-    def item_to_row(self, item: Contact) -> tuple:
+    def item_to_row(self, item: ContactSchema) -> tuple:
         return (
             str(item.id),
             item.name,

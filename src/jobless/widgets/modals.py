@@ -17,7 +17,17 @@ from textual.widgets import (
     TextArea,
 )
 
-from jobless.models import Application, Company, Contact, Location, Status
+from jobless.models import Location, Status
+from jobless.schemas import (
+    ApplicationSchema,
+    CompanySchema,
+    ContactSchema,
+    LookupSchema,
+)
+
+
+def _to_options(items: list[LookupSchema]) -> list[tuple[str, int]]:
+    return [(item.label, item.id) for item in items if item.id]
 
 
 class FormModal(ModalScreen[dict]):
@@ -119,7 +129,7 @@ class ConfirmationModal(FormModal):
 class CreateCompanyModal(FormModal):
     def __init__(
         self,
-        contacts: list[Contact],
+        contacts: list[LookupSchema],
         known_names: set[str],
         known_urls: set[str],
         title: str = "add a new company",
@@ -152,7 +162,7 @@ class CreateCompanyModal(FormModal):
 
         yield Label("contacts")
         yield SelectionList[int](
-            *[(contact.name, contact.id) for contact in self.contacts],
+            *_to_options(self.contacts),
             id="contacts",
         )
 
@@ -198,8 +208,8 @@ class CreateCompanyModal(FormModal):
 class CreateContactModal(FormModal):
     def __init__(
         self,
-        companies: list[Company],
-        applications: list[Application],
+        companies: list[LookupSchema],
+        applications: list[LookupSchema],
         known_emails: set[str],
         known_urls: set[str],
         known_phones: set[str],
@@ -229,13 +239,13 @@ class CreateContactModal(FormModal):
 
         yield Label("companies")
         yield SelectionList[int](
-            *[(company.name, company.id) for company in self.companies],
+            *_to_options(self.companies),
             id="companies",
         )
 
         yield Label("applications")
         yield SelectionList[int](
-            *[(application.title, application.id) for application in self.applications],
+            *_to_options(self.applications),
             id="applications",
         )
 
@@ -294,8 +304,9 @@ class CreateContactModal(FormModal):
 class CreateApplicationModal(FormModal):
     def __init__(
         self,
-        companies: list[Company],
-        contacts: list[Contact],
+        companies: list[LookupSchema],
+        contacts: list[LookupSchema],
+        skills: list[LookupSchema],
         known_urls: set[str],
         title: str = "add a new application",
         *args,
@@ -303,6 +314,7 @@ class CreateApplicationModal(FormModal):
     ) -> None:
         self.companies = companies
         self.contacts = contacts
+        self.skills = skills
         self.known_urls = known_urls
         super().__init__(title=title, *args, **kwargs)
 
@@ -317,8 +329,8 @@ class CreateApplicationModal(FormModal):
         )
 
         yield Label("company")
-        yield Select(
-            options=[(company.name, company.id) for company in self.companies],
+        yield Select[int](
+            options=_to_options(self.companies),
             id="company_id",
         )
 
@@ -351,6 +363,9 @@ class CreateApplicationModal(FormModal):
             id="location",
         )
 
+        yield Label("address")
+        yield Input(placeholder="e.g. 123 Tech Lane", id="address")
+
         yield Label("date applied")
         yield Input(placeholder="YYYY-MM-DD", id="date_applied")
 
@@ -359,8 +374,14 @@ class CreateApplicationModal(FormModal):
 
         yield Label("contacts")
         yield SelectionList[int](
-            *[(contact.name, contact.id) for contact in self.contacts],
+            *_to_options(self.contacts),
             id="contacts",
+        )
+
+        yield Label("skills")
+        yield Input(
+            placeholder="e.g. python, textual, sql, postgresql",
+            id="skills",
         )
 
         yield Label("notes")
@@ -382,9 +403,11 @@ class CreateApplicationModal(FormModal):
         title = self.query_one("#title", Input).value.strip()
         company_id = self.query_one("#company_id", Select).value
 
-        if not title or company_id == Select.BLANK:
+        if not title or company_id == Select.NULL:
             self.notify("a title and a company are required!", severity="error")
             return None
+
+        assert isinstance(company_id, int)
 
         date_applied = self._parse_date(
             self.query_one("#date_applied", Input).value.strip()
@@ -405,19 +428,28 @@ class CreateApplicationModal(FormModal):
             contact for contact in self.contacts if contact.id in selected_contacts
         ]
 
+        raw_skills = self.query_one("#skills", Input).value.strip()
+        skills = [
+            LookupSchema(label=skill.strip())
+            for skill in raw_skills.split(",")
+            if skill.strip()
+        ]
+
         return {
             "title": title,
             "description": self.query_one("#description", TextArea).text.strip()
             or None,
-            "company_id": company_id,
+            "company": LookupSchema(id=company_id, label=""),
             "status": self.query_one("#status", Select).value,
             "priority": int(self.query_one("#priority", Input).value or 0),
             "platform": self.query_one("#platform", Input).value.strip() or None,
             "salary_range": self.query_one("#salary", Input).value.strip() or None,
             "location_type": self.query_one("#location", Select).value,
+            "address": self.query_one("#address", Input).value.strip() or None,
             "date_applied": date_applied,
             "follow_up_date": follow_up_date,
             "contacts": contacts,
+            "skills": skills,
             "notes": self.query_one("#notes", TextArea).text.strip() or None,
         }
 
@@ -425,8 +457,8 @@ class CreateApplicationModal(FormModal):
 class UpdateCompanyModal(CreateCompanyModal):
     def __init__(
         self,
-        instance: Company,
-        contacts: list[Contact],
+        instance: CompanySchema,
+        contacts: list[LookupSchema],
         known_names: set[str],
         known_urls: set[str],
         title: str = "update company",
@@ -464,9 +496,9 @@ class UpdateCompanyModal(CreateCompanyModal):
 class UpdateContactModal(CreateContactModal):
     def __init__(
         self,
-        instance: Contact,
-        companies: list[Company],
-        applications: list[Application],
+        instance: ContactSchema,
+        companies: list[LookupSchema],
+        applications: list[LookupSchema],
         known_emails: set[str],
         known_urls: set[str],
         known_phones: set[str],
@@ -516,9 +548,10 @@ class UpdateContactModal(CreateContactModal):
 class UpdateApplicationModal(CreateApplicationModal):
     def __init__(
         self,
-        instance: Application,
-        companies: list[Company],
-        contacts: list[Contact],
+        instance: ApplicationSchema,
+        companies: list[LookupSchema],
+        contacts: list[LookupSchema],
+        skills: list[LookupSchema],
         known_urls: set[str],
         title: str = "update application",
         *args,
@@ -531,6 +564,7 @@ class UpdateApplicationModal(CreateApplicationModal):
         super().__init__(
             companies=companies,
             contacts=contacts,
+            skills=skills,
             known_urls=safe_urls,
             title=title,
             *args,
@@ -544,6 +578,10 @@ class UpdateApplicationModal(CreateApplicationModal):
         self.query_one("#priority", Input).value = str(self.instance.priority)
         self.query_one("#platform", Input).value = self.instance.platform or ""
         self.query_one("#salary", Input).value = self.instance.salary_range or ""
+        self.query_one("#address", Input).value = self.instance.address or ""
+        self.query_one("#skills", Input).value = ", ".join(
+            [skill.label for skill in self.instance.skills if skill.label]
+        )
 
         if self.instance.date_applied:
             self.query_one(
@@ -560,7 +598,7 @@ class UpdateApplicationModal(CreateApplicationModal):
         self.query_one("#description", TextArea).text = self.instance.description or ""
         self.query_one("#notes", TextArea).text = self.instance.notes or ""
 
-        self.query_one("#company_id", Select).value = self.instance.company_id
+        self.query_one("#company_id", Select).value = self.instance.company.id
         self.query_one("#status", Select).value = self.instance.status
         self.query_one("#location", Select).value = self.instance.location_type
 
