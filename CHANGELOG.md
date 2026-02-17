@@ -1,3 +1,16 @@
+## 0.14.0 (2026-02-17)
+
+### Feat
+
+- **db**: add numeric id to skill model
+- **db**: add schemas for easier validation in app
+- **app**: add update modals
+
+### Refactor
+
+- **app**: update application to use schemas instead of models
+- **db**: decouple models from app with schemas
+
 ## 0.13.0 (2026-02-11)
 
 ### Feat
