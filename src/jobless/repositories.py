@@ -72,7 +72,7 @@ class GenericRepository(Generic[T, S]):
         finally:
             session.close()
 
-    def update(self, id: int, old_schema: S, new_schema: S) -> S | None:
+    def update(self, schema: S) -> S | None:
         raise NotImplementedError
 
     def delete(self, id: int) -> None:
@@ -151,6 +151,29 @@ class CompanyRepository(GenericRepository[Company, CompanySchema]):
     def list_urls(self) -> set[str]:
         return self._list_unique_values(Company.url)
 
+    def update(self, schema: CompanySchema) -> CompanySchema | None:
+        session = self.session_factory()
+        try:
+            instance = session.get(Company, schema.id)
+            if not instance:
+                return
+
+            for key, value in self._get_model_kwargs(schema).items():
+                setattr(instance, key, value)
+
+            contact_ids = [contact.id for contact in schema.contacts]
+            instance.contacts = (
+                session.query(Contact).filter(Contact.id.in_(contact_ids)).all()
+            )
+
+            session.commit()
+            return CompanySchema.from_model(instance)
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
 
 class ApplicationRepository(GenericRepository[Application, ApplicationSchema]):
     def __init__(self, session_factory: sessionmaker):
@@ -219,6 +242,32 @@ class ApplicationRepository(GenericRepository[Application, ApplicationSchema]):
     def list_urls(self) -> set[str]:
         return self._list_unique_values(Application.url)
 
+    def update(self, schema: ApplicationSchema) -> ApplicationSchema | None:
+        session = self.session_factory()
+        try:
+            instance = session.get(Application, schema.id)
+            if not instance:
+                return
+
+            for key, value in self._get_model_kwargs(schema).items():
+                setattr(instance, key, value)
+
+            skill_ids = [s.id for s in schema.skills]
+            instance.skills = session.query(Skill).filter(Skill.id.in_(skill_ids)).all()
+
+            contact_ids = [contact.id for contact in schema.contacts]
+            instance.contacts = (
+                session.query(Contact).filter(Contact.id.in_(contact_ids)).all()
+            )
+
+            session.commit()
+            return ApplicationSchema.from_model(instance)
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
 
 class SkillRepository(GenericRepository[Skill, SkillSchema]):
     def __init__(self, session_factory: sessionmaker):
@@ -233,7 +282,7 @@ class SkillRepository(GenericRepository[Skill, SkillSchema]):
             if existing_skill:
                 return SkillSchema.from_model(existing_skill)
 
-            new_skill = Skill(id=schema.id, name=schema.name)
+            new_skill = Skill(name=schema.name)
 
             if schema.applications:
                 ids = [application.id for application in schema.applications]
@@ -351,3 +400,33 @@ class ContactRepository(GenericRepository[Contact, ContactSchema]):
 
     def list_urls(self) -> set[str]:
         return self._list_unique_values(Contact.url)
+
+    def update(self, schema: ContactSchema) -> ContactSchema | None:
+        session = self.session_factory()
+        try:
+            instance = session.get(Contact, schema.id)
+            if not instance:
+                return
+
+            for key, value in self._get_model_kwargs(schema).items():
+                setattr(instance, key, value)
+
+            company_ids = [company.id for company in schema.companies]
+            instance.companies = (
+                session.query(Company).filter(Company.id.in_(company_ids)).all()
+            )
+
+            application_ids = [application.id for application in schema.applications]
+            instance.applications = (
+                session.query(Application)
+                .filter(Application.id.in_(application_ids))
+                .all()
+            )
+
+            session.commit()
+            return ContactSchema.from_model(instance)
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()

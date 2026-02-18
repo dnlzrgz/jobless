@@ -111,6 +111,13 @@ class Company(Base, TimestampMixin):
         secondary=company_contact_link,
     )
 
+    @validates("name")
+    def validate_name(self, key, name):
+        if not name or not name.strip():
+            raise ValueError("company name cannot be empty")
+
+        return name
+
 
 class Application(Base, TimestampMixin):
     __tablename__ = "applications"
@@ -144,6 +151,13 @@ class Application(Base, TimestampMixin):
         secondary=application_skill_link,
     )
 
+    @validates("title")
+    def validate_title(self, key, title):
+        if not title or not title.strip():
+            raise ValueError("application title cannot be empty")
+
+        return title
+
 
 class Skill(Base, TimestampMixin):
     __tablename__ = "skills"
@@ -176,6 +190,13 @@ class Contact(Base, TimestampMixin):
         back_populates="contacts",
         secondary=application_contact_link,
     )
+
+    @validates("name")
+    def validate_name(self, key, name):
+        if not name or not name.strip():
+            raise ValueError("contact name cannot be empty")
+
+        return name
 
     @validates("email")
     def validate_email(self, key, email):

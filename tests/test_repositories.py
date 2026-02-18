@@ -120,12 +120,106 @@ def test_skill_repository_delete(faker, skill_repository):
     assert not skill
 
 
-# def test_update(skill_repository):
-#     skill = skill_repository.add(Skill(name="python"))
-#     updated = skill_repository.update(skill.name, {"name": "rust"})
-#
-#     assert updated
-#     assert updated.name == "rust"
+def test_company_repository_update_name(faker, company_repository):
+    original_name = faker.unique.company()
+    company = company_repository.add(
+        CompanySchema(name=original_name),
+    )
+
+    new_name = faker.unique.company()
+    update_data = CompanySchema(id=company.id, name=new_name)
+    updated_schema = company_repository.update(update_data)
+    assert updated_schema.name != original_name
+    assert updated_schema.name == new_name
+
+
+def test_company_repository_update_contacts(
+    faker,
+    contact_repository,
+    company_repository,
+):
+    contact = contact_repository.add(ContactSchema(name=faker.name()))
+    contact_lookup = LookupSchema(id=contact.id, label=contact.name)
+
+    company = company_repository.add(
+        CompanySchema(
+            name=faker.unique.company(),
+            contacts=[contact_lookup],
+        )
+    )
+
+    update_schema = CompanySchema(
+        id=company.id,
+        name=company.name,
+        contacts=[],
+    )
+
+    updated_schema = company_repository.update(update_schema)
+    assert updated_schema.id == company.id
+    assert not updated_schema.contacts
+    assert len(updated_schema.contacts) == 0
+
+
+def test_application_repository_update_company(
+    faker,
+    company_repository,
+    application_repository,
+):
+    first_company = company_repository.add(
+        CompanySchema(
+            name=faker.unique.company(),
+        )
+    )
+    second_company = company_repository.add(
+        CompanySchema(
+            name=faker.unique.company(),
+        )
+    )
+
+    application = application_repository.add(
+        ApplicationSchema(
+            title=faker.job(),
+            company=LookupSchema(id=first_company.id, label=first_company.name),
+        )
+    )
+    assert application.company.id == first_company.id
+
+    update_schema = ApplicationSchema(
+        id=application.id,
+        title=application.title,
+        company=LookupSchema(id=second_company.id, label=second_company.name),
+    )
+
+    updated_schema = application_repository.update(update_schema)
+    assert updated_schema.id == application.id
+    assert updated_schema.company
+    assert updated_schema.company.id == second_company.id
+
+
+def test_contact_repository_update_email(faker, contact_repository):
+    original_email = faker.unique.email()
+    contact = contact_repository.add(
+        ContactSchema(
+            name=faker.name(),
+            email=original_email,
+        ),
+    )
+
+    new_email = faker.unique.email()
+    update_data = ContactSchema(id=contact.id, name=contact.name, email=new_email)
+    updated_schema = contact_repository.update(update_data)
+    assert updated_schema.email != original_email
+    assert updated_schema.email == new_email
+
+
+def test_contact_repository_update_empty_name_fails(faker, contact_repository):
+    contact = contact_repository.add(
+        ContactSchema(name=faker.name()),
+    )
+
+    update_data = ContactSchema(id=contact.id, name="")
+    with pytest.raises(ValueError):
+        contact_repository.update(update_data)
 
 
 def test_get_application_with_details(

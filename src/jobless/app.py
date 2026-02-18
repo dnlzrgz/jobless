@@ -260,8 +260,9 @@ class JoblessApp(App):
                 return
 
             try:
-                # model_instance = repository.model(**result)
-                # repository.add(model_instance)
+                repository.update(
+                    repository.schema.from_dict({**result, "id": instance.id})
+                )
                 self.notify(f"{label} updated!")
                 self.action_reload()
             except Exception as e:
