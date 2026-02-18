@@ -15,7 +15,7 @@ class JoblessTable(DataTable, Generic[S]):
     SCHEMA: Type[S]
     COLUMNS: list[str]
 
-    BINDINGS = [
+    BINDINGS = DataTable.BINDINGS + [
         Binding(
             "backspace,delete",
             "delete",
@@ -31,7 +31,13 @@ class JoblessTable(DataTable, Generic[S]):
             "create",
             description="new",
         ),
-    ] + DataTable.BINDINGS
+        Binding("up,k", "cursor_up", "cursor up", show=False),
+        Binding("down,j", "cursor_down", "cursor down", show=False),
+        Binding("right,l", "cursor_right", "cursor right", show=False),
+        Binding("left,h", "cursor_left", "cursor left", show=False),
+        Binding("g,ctrl+home", "scroll_top", "top", show=False),
+        Binding("G,ctrl+end", "scroll_bottom", "bottom", show=False),
+    ]
 
     class Create(Message):
         def __init__(self, table: JoblessTable) -> None:

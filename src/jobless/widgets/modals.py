@@ -106,14 +106,14 @@ class FormModal(ModalScreen[dict]):
 
 
 class ConfirmationModal(FormModal):
-    BINDINGS = [
+    BINDINGS = FormModal.BINDINGS + [
         Binding(
             "y,enter,delete,backspace",
             "on_submit",
             description="confirm",
             priority=True,
         ),
-    ] + FormModal.BINDINGS
+    ]
 
     def __init__(self, message: str, *args, **kwargs) -> None:
         self.message = message
