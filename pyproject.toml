@@ -3,7 +3,7 @@ name = "jobless"
 version = "0.14.1"
 authors = [{ name = "dnlzrgz", email = "contact@dnlzrgz.com" }]
 license = "MIT"
-description = "tui for managing and keeping track of job applications."
+description = "A simple job application manager for your terminal."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -11,6 +11,21 @@ dependencies = [
     "pydantic-settings>=2.12.0",
     "sqlalchemy>=2.0.46",
     "textual>=7.0.1",
+]
+keywords = ["tui", "job-search", "job", "productivity", "textual", "sqlite"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Office/Business",
+  "Topic :: Terminals",
 ]
 
 [project.urls]

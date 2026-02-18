@@ -279,8 +279,8 @@ class JoblessApp(App):
         repository = config["repository"]
         label = config["label"]
 
-        item = repository.get_by_id(message.id)
-        if not item:
+        instance = repository.get_by_id(message.id)
+        if not instance:
             self.notify(f"{label} not found!", severity="error")
             return
 
@@ -290,10 +290,9 @@ class JoblessApp(App):
                 self.notify(f"{label} deleted!")
                 self.action_reload()
 
-        display_name = getattr(item, "name", getattr(item, "title", "name"))
         self.push_screen(
             ConfirmationModal(
-                message=f'delete {label} "{display_name}"?',
+                message=f'delete {label} "{instance.label}"?',
             ),
             callback,
         )

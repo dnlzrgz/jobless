@@ -108,8 +108,8 @@ class FormModal(ModalScreen[dict]):
 class ConfirmationModal(FormModal):
     BINDINGS = FormModal.BINDINGS + [
         Binding(
-            "y,enter,delete,backspace",
-            "on_submit",
+            "y,enter",
+            "submit",
             description="confirm",
             priority=True,
         ),
@@ -124,6 +124,9 @@ class ConfirmationModal(FormModal):
 
     def get_result(self) -> dict[str, Any] | None:
         return {"confirmed": True}
+
+    def action_submit(self) -> None:
+        self.on_submit()
 
 
 class CreateCompanyModal(FormModal):
