@@ -1,3 +1,9 @@
+## 0.15.0 (2026-02-18)
+
+### Feat
+
+- **app**: improve navigation in data tables
+
 ## 0.14.1 (2026-02-18)
 
 ### Fix
