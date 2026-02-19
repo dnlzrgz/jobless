@@ -1,3 +1,9 @@
+## 0.15.2 (2026-02-19)
+
+### Feat
+
+- **app**: add key bindings to jump between tables
+
 ## 0.15.1 (2026-02-19)
 
 ### Refactor
