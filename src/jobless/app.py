@@ -56,6 +56,24 @@ class JoblessApp(App):
 
     BINDINGS = [
         Binding(
+            "1",
+            "focus_table('company')",
+            description="jump to company table",
+            show=False,
+        ),
+        Binding(
+            "2",
+            "focus_table('application')",
+            description="jump to applications table",
+            show=False,
+        ),
+        Binding(
+            "3",
+            "focus_table('contact')",
+            description="jump to contacts table",
+            show=False,
+        ),
+        Binding(
             "ctrl+c",
             "app.quit",
             description="quit",
@@ -127,6 +145,12 @@ class JoblessApp(App):
         }
 
         self.action_reload()
+
+    def action_focus_table(self, label: str) -> None:
+        for config in self.registry.values():
+            if config["label"] == label:
+                config["instance"].focus()
+                break
 
     def action_reload(self) -> None:
         for config in self.registry.values():
