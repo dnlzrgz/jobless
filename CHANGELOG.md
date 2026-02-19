@@ -1,3 +1,9 @@
+## 0.15.1 (2026-02-19)
+
+### Refactor
+
+- **settings**: remove pydantic-settings for dataclass
+
 ## 0.15.0 (2026-02-18)
 
 ### Feat
