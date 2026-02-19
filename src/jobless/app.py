@@ -73,7 +73,7 @@ class JoblessApp(App):
     def __init__(self):
         super().__init__()
 
-        self.settings: Settings = Settings()
+        self.settings: Settings = Settings.load()
 
         engine = get_engine(self.settings.db_url)
         init_db(engine)

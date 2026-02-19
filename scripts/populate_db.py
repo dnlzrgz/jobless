@@ -30,7 +30,7 @@ SKILLS = {
     "css",
     "tailwind css",
 }
-SETTINGS = Settings()
+SETTINGS = Settings.load()
 
 
 def is_empty(session: Session) -> bool:
