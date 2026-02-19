@@ -127,7 +127,7 @@ FormModal {
 }
 
 .main {
-  grid-columns: 2fr 4fr;
+  grid-columns: 3fr 5fr;
   grid-size: 2 2;
   layout: grid;
   margin: 1;
