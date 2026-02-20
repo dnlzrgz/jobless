@@ -12,8 +12,8 @@ from jobless.settings import Settings
 try:
     from faker import Faker
 except ImportError:
-    print("Error: 'faker' package not found.")
-    print("This script requires development dependencies.")
+    print("error: 'faker' package not found.")
+    print("this script requires development dependencies.")
     sys.exit(1)
 
 fake = Faker()
@@ -48,16 +48,16 @@ def seed_data():
 
     with SessionLocal() as session:
         if not is_empty(session):
-            print(f"⚠️  Database {SETTINGS.db_url} is not empty!")
+            print(f"⚠️  database {SETTINGS.db_url} is not empty!")
             sys.exit(1)
 
-        print(f"✨ Starting seed for: {SETTINGS.db_url}")
+        print(f"✨ starting seed for: {SETTINGS.db_url}")
 
-        print("🌱 Adding skills...")
+        print("🌱 adding skills...")
         skills = [Skill(name=name) for name in SKILLS]
         session.add_all(skills)
 
-        print("🌱 Adding contacts...")
+        print("🌱 adding contacts...")
         contacts = [
             Contact(
                 name=fake.name(),
@@ -70,7 +70,7 @@ def seed_data():
         session.add_all(contacts)
         session.flush()
 
-        print("🌱 Adding companies...")
+        print("🌱 adding companies...")
         companies = [
             Company(
                 name=fake.unique.company(),
@@ -83,7 +83,7 @@ def seed_data():
         session.add_all(companies)
         session.flush()
 
-        print("🌱 Adding applications...")
+        print("🌱 adding applications...")
         applications = []
         for _ in range(randint(100, 200)):
             applied = fake.date_between(start_date="-1y", end_date="today")
@@ -106,10 +106,10 @@ def seed_data():
 
         session.add_all(applications)
 
-        print("💾 Finalizing transaction...")
+        print("💾 finalizing transaction...")
         session.commit()
 
-    print(f"✅ Seeded in {time.perf_counter() - start_time:.2f}s")
+    print(f"✅ seeded in {time.perf_counter() - start_time:.2f}s")
 
 
 if __name__ == "__main__":
