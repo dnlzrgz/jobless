@@ -38,6 +38,19 @@ class GenericRepository(Generic[T, S]):
 
         return model_kwargs
 
+    def _apply_filters(self, statement, **filters):
+        for key, val in filters.items():
+            if val is None or not hasattr(self.model, key):
+                continue
+
+            column = getattr(self.model, key)
+            if isinstance(val, (list, tuple, set)):
+                statement = statement.where(column.in_(val))
+            else:
+                statement = statement.where(column == val)
+
+        return statement
+
     def add(self, schema: S) -> S:
         raise NotImplementedError
 
@@ -53,10 +66,13 @@ class GenericRepository(Generic[T, S]):
     def get_with_details(self, id: int) -> S | None:
         raise NotImplementedError
 
-    def list(self) -> list[LookupSchema]:
+    def list(self, **filters) -> list[LookupSchema]:
         session = self.session_factory()
+
         try:
-            instances = session.scalars(select(self.model)).all()
+            statement = select(self.model)
+            statement = self._apply_filters(statement, **filters)
+            instances = session.scalars(statement).all()
             return [LookupSchema.from_model(instance) for instance in instances]
         finally:
             session.close()
@@ -131,16 +147,16 @@ class CompanyRepository(GenericRepository[Company, CompanySchema]):
         finally:
             session.close()
 
-    def list_with_details(self) -> list[CompanySchema]:
+    def list_with_details(self, **filters) -> list[CompanySchema]:
         session = self.session_factory()
         try:
-            instances = session.scalars(
-                select(self.model).options(
-                    selectinload(Company.applications),
-                    selectinload(Company.contacts),
-                )
-            ).all()
+            statement = select(self.model).options(
+                selectinload(Company.applications),
+                selectinload(Company.contacts),
+            )
+            statement = self._apply_filters(statement, **filters)
 
+            instances = session.scalars(statement).all()
             return [CompanySchema.from_model(instance) for instance in instances]
         finally:
             session.close()
@@ -224,17 +240,17 @@ class ApplicationRepository(GenericRepository[Application, ApplicationSchema]):
         finally:
             session.close()
 
-    def list_with_details(self) -> list[ApplicationSchema]:
+    def list_with_details(self, **filters) -> list[ApplicationSchema]:
         session = self.session_factory()
         try:
-            instances = session.scalars(
-                select(self.model).options(
-                    selectinload(Application.company),
-                    selectinload(Application.skills),
-                    selectinload(Application.contacts),
-                )
-            ).all()
+            statement = select(self.model).options(
+                joinedload(Application.company),
+                selectinload(Application.skills),
+                selectinload(Application.contacts),
+            )
+            statement = self._apply_filters(statement, **filters)
 
+            instances = session.scalars(statement).all()
             return [ApplicationSchema.from_model(instance) for instance in instances]
         finally:
             session.close()
@@ -316,15 +332,15 @@ class SkillRepository(GenericRepository[Skill, SkillSchema]):
         finally:
             session.close()
 
-    def list_with_details(self) -> list[SkillSchema]:
+    def list_with_details(self, **filters) -> list[SkillSchema]:
         session = self.session_factory()
         try:
-            instances = session.scalars(
-                select(self.model).options(
-                    selectinload(Skill.applications),
-                )
-            ).all()
+            statement = select(self.model).options(
+                selectinload(Skill.applications),
+            )
+            statement = self._apply_filters(statement, **filters)
 
+            instances = session.scalars(statement).all()
             return [SkillSchema.from_model(instance) for instance in instances]
         finally:
             session.close()
@@ -378,16 +394,16 @@ class ContactRepository(GenericRepository[Contact, ContactSchema]):
         finally:
             session.close()
 
-    def list_with_details(self) -> list[ContactSchema]:
+    def list_with_details(self, **filters) -> list[ContactSchema]:
         session = self.session_factory()
         try:
-            instances = session.scalars(
-                select(self.model).options(
-                    selectinload(Contact.applications),
-                    selectinload(Contact.companies),
-                )
-            ).all()
+            statement = select(self.model).options(
+                selectinload(Contact.applications),
+                selectinload(Contact.companies),
+            )
+            statement = self._apply_filters(statement, **filters)
 
+            instances = session.scalars(statement).all()
             return [ContactSchema.from_model(instance) for instance in instances]
         finally:
             session.close()

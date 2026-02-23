@@ -1,6 +1,6 @@
 import pytest
 
-from jobless.models import Skill
+from jobless.models import Skill, Status
 from jobless.schemas import (
     ApplicationSchema,
     CompanySchema,
@@ -107,6 +107,45 @@ def test_skill_repository_list(skill_repository):
     for skill in skills:
         assert isinstance(skill, LookupSchema)
         assert skill.label in skill_names
+
+
+def test_companies_repository_list(faker, company_repository):
+    company_names = [faker.unique.company() for _ in range(10)]
+    for name in company_names:
+        company_repository.add(CompanySchema(name=name))
+
+    companies = company_repository.list()
+    assert len(companies) == len(company_names)
+
+    for company in companies:
+        assert isinstance(company, LookupSchema)
+        assert company.label in company_names
+
+
+def test_application_repository_list_with_filters(
+    faker,
+    company_repository,
+    application_repository,
+):
+    company = company_repository.add(CompanySchema(name=faker.company()))
+    company_lookup = LookupSchema(id=company.id, label=company.name)
+
+    applications = [
+        ApplicationSchema(
+            title=faker.job(),
+            status=status,
+            company=company_lookup,
+        )
+        for status in [Status.APPLIED, Status.INTERVIEWING, Status.REJECTED]
+    ]
+    for application in applications:
+        application_repository.add(application)
+
+    results = application_repository.list(status=[Status.APPLIED, Status.REJECTED])
+    assert len(results) == 2
+
+    results = application_repository.list(company_id=company_lookup.id)
+    assert len(results) == len(applications)
 
 
 def test_skill_repository_delete(faker, skill_repository):
