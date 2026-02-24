@@ -3,7 +3,7 @@ from pathlib import Path
 
 from jobless.app import JoblessApp
 from jobless.constants import APP_NAME, APP_VERSION
-from jobless.export import export
+from jobless.commands import export, prune
 
 
 def main() -> None:
@@ -21,6 +21,29 @@ def main() -> None:
     )
 
     subparsers = parser.add_subparsers(dest="command", help="commands")
+
+    prune_parser = subparsers.add_parser(
+        "prune",
+        help="remove stale applications and orphan records.",
+    )
+    prune_parser.add_argument(
+        "--days",
+        type=int,
+        default=180,
+        help="prune stale applications older than this (default: 180)",
+    )
+    prune_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="show what records would be deleted.",
+    )
+    prune_parser.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="skip confirmation prompt.",
+    )
+
     export_parser = subparsers.add_parser(
         "export",
         help="export your data to a csv or zip file.",
@@ -32,8 +55,7 @@ def main() -> None:
         required=True,
     )
     export_parser.add_argument(
-        "-t",
-        "--type",
+        "--only",
         choices=["contacts", "companies", "applications", "all"],
         default="all",
         help="specify what to export (default: all).",
@@ -46,14 +68,20 @@ def main() -> None:
         app.run()
         return
 
-    if args.command == "export":
+    if args.command == "prune":
+        prune(
+            days=args.days,
+            dry_run=args.dry_run,
+            confirm=args.yes,
+        )
+    elif args.command == "export":
         file_path: Path = Path(args.file)
-        if args.type == "all" and file_path.suffix != ".zip":
+        if args.only == "all" and file_path.suffix != ".zip":
             parser.error(
                 f"exporting 'all' requires a .zip extension to avoid errors. got '{file_path.name}'"
             )
 
-        if args.type != "all" and file_path.suffix != ".csv":
+        if args.only != "all" and file_path.suffix != ".csv":
             parser.error(
                 f"exporting {args.type} requires a .csv extension. got '{file_path.name}'"
             )
@@ -66,4 +94,4 @@ def main() -> None:
                 print("aborted!")
                 return
 
-        export(file_path, export_type=args.type)
+        export(file_path, scope=args.only)

@@ -126,7 +126,7 @@ def create_zip_archive(
         print(f"⚠️ unexpected error creating zip: {e}")
 
 
-def export(file_path: Path, export_type: str) -> None:
+def export(file_path: Path, scope: str) -> None:
     settings: Settings = Settings.load()
     engine = get_engine(settings.db_url)
     init_db(engine)
@@ -138,8 +138,8 @@ def export(file_path: Path, export_type: str) -> None:
         "applications": get_applications_data,
     }
 
-    if export_type == "all":
+    if scope == "all":
         create_zip_archive(file_path, session_factory, registry)
-    elif export_type in registry:
-        cols, rows = registry[export_type](session_factory)
-        write_csv_to_path(file_path, cols, rows, export_type)
+    elif scope in registry:
+        cols, rows = registry[scope](session_factory)
+        write_csv_to_path(file_path, cols, rows, scope)

@@ -13,7 +13,7 @@ try:
     from faker import Faker
 except ImportError:
     print("error: 'faker' package not found.")
-    print("this script requires development dependencies.")
+    print("This script requires development dependencies.")
     sys.exit(1)
 
 fake = Faker()
@@ -48,7 +48,7 @@ def seed_data():
 
     with SessionLocal() as session:
         if not is_empty(session):
-            print(f"⚠️  database {SETTINGS.db_url} is not empty!")
+            print(f"⚠️ database {SETTINGS.db_url} is not empty!")
             sys.exit(1)
 
         print(f"✨ starting seed for: {SETTINGS.db_url}")
@@ -65,7 +65,7 @@ def seed_data():
                 phone=fake.unique.phone_number(),
                 url=fake.unique.url(),
             )
-            for _ in range(randint(10, 50))
+            for _ in range(randint(20, 100))
         ]
         session.add_all(contacts)
         session.flush()
@@ -78,15 +78,22 @@ def seed_data():
                 industry=fake.bs(),
                 contacts=sample(contacts, randint(1, 2)),
             )
-            for _ in range(randint(10, 50))
+            for _ in range(randint(50, 200))
         ]
         session.add_all(companies)
         session.flush()
 
         print("🌱 adding applications...")
         applications = []
-        for _ in range(randint(100, 200)):
-            applied = fake.date_between(start_date="-1y", end_date="today")
+        for _ in range(randint(100, 500)):
+            applied_date = fake.date_between(start_date="-2y", end_date="today")
+            updated_date = fake.date_between(start_date=applied_date, end_date="today")
+            follow_up_date = (
+                fake.date_between(start_date=applied_date, end_date="+30d")
+                if randint(0, 1)
+                else None
+            )
+
             application = Application(
                 title=fake.job(),
                 description=fake.paragraph(),
@@ -96,8 +103,10 @@ def seed_data():
                 location_type=choice(list(Location)),
                 status=choice(list(Status)),
                 priority=randint(0, 4),
-                date_applied=applied,
-                follow_up_date=applied if randint(0, 1) else None,
+                date_applied=applied_date,
+                created_at=applied_date,
+                follow_up_date=follow_up_date,
+                last_updated=updated_date,
                 company=choice(companies),
                 skills=sample(skills, randint(2, 3)),
                 contacts=sample(contacts, 1),

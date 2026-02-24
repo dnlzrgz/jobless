@@ -1,10 +1,11 @@
 from dataclasses import fields
+from datetime import date
 from typing import Any, Generic, TypeVar
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import joinedload, selectinload, sessionmaker
 
-from jobless.models import Application, Base, Company, Contact, Skill
+from jobless.models import Application, Base, Company, Contact, Skill, Status
 from jobless.schemas import (
     ApplicationSchema,
     BaseSchema,
@@ -258,6 +259,32 @@ class ApplicationRepository(GenericRepository[Application, ApplicationSchema]):
     def list_urls(self) -> set[str]:
         return self._list_unique_values(Application.url)
 
+    def list_stale(
+        self,
+        before_date: date,
+        statuses: list[Status],
+    ) -> list[ApplicationSchema]:
+        session = self.session_factory()
+        try:
+            statement = (
+                select(Application)
+                .where(
+                    and_(
+                        Application.last_updated < before_date,
+                        Application.status.in_(statuses),
+                    )
+                )
+                .options(
+                    joinedload(Application.company),
+                    selectinload(Application.skills),
+                    selectinload(Application.contacts),
+                )
+            )
+            instances = session.scalars(statement).all()
+            return [ApplicationSchema.from_model(instance) for instance in instances]
+        finally:
+            session.close()
+
     def update(self, schema: ApplicationSchema) -> ApplicationSchema | None:
         session = self.session_factory()
         try:
@@ -340,6 +367,15 @@ class SkillRepository(GenericRepository[Skill, SkillSchema]):
             )
             statement = self._apply_filters(statement, **filters)
 
+            instances = session.scalars(statement).all()
+            return [SkillSchema.from_model(instance) for instance in instances]
+        finally:
+            session.close()
+
+    def list_orphaned(self) -> list[SkillSchema]:
+        session = self.session_factory()
+        try:
+            statement = select(Skill).where(~Skill.applications.any())
             instances = session.scalars(statement).all()
             return [SkillSchema.from_model(instance) for instance in instances]
         finally:
