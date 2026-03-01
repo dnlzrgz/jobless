@@ -1,3 +1,15 @@
+## 0.16.0 (2026-03-01)
+
+### Feat
+
+- **cli**: add prune command
+- **db**: add method to handle basic filtering
+- **cli**: add export command
+
+### Fix
+
+- get_app_dir was not using correct parameter
+
 ## 0.15.3 (2026-02-19)
 
 ### Feat
