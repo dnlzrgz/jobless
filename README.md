@@ -8,9 +8,8 @@ jobless is a simple, easy-to-use job application manager that lives in your term
 
 ## Features
 
-- Manage applications, companies, and contacts all in one interface that understands and lets you build relationships between them.
-- Navigate, create, and update without ever lifting your hands from the home row.
-- Local-first SQLite backend.
+- Manage applications, companies, and contacts all in one place.
+- Navigate, create, and update without lifting your hands from the keyboard.
 
 ## Roadmap (WIP)
 
@@ -19,6 +18,7 @@ jobless is a simple, easy-to-use job application manager that lives in your term
 - `$EDITOR` integration.
 - `import` command.
 - AI-Assisted pipeline.
+- Notifications.
 - Statistics (maybe).
 
 ## Installation
@@ -62,4 +62,16 @@ jobless prune --days 180 --dry-run
 
 # Cleanup
 jobless prune --days 180
+```
+
+## Config
+
+jobless looks for a config file at `~/.config/jobless/config.toml`. By default, the SQLite database will also be created in this directory.
+
+### Theme
+
+At the moment, you can customize the theme using any of the [built-in textual themes](https://textual.textualize.io/guide/design/). To change the theme, add the following line to your config file:
+
+```toml
+theme = "catppuccin-latte"
 ```
