@@ -8,12 +8,10 @@ def set_sqlite_pragmas(dbapi_connection, connection_record):
 
     cursor.execute("PRAGMA foreign_keys = ON;")
     cursor.execute("PRAGMA journal_mode = WAL;")
-    cursor.execute("PRAGMA busy_timeout = 5000;")
     cursor.execute("PRAGMA synchronous = NORMAL;")
-    cursor.execute("PRAGMA mmap_size = 268435456;")
-    cursor.execute("PRAGMA journal_size_limit = 5242880;")
+    cursor.execute("PRAGMA mmap_size = 134217728;")
+    cursor.execute("PRAGMA journal_size_limit = 27103364;")
     cursor.execute("PRAGMA cache_size = 2000;")
-    cursor.execute("PRAGMA temp_store = MEMORY;")
 
     cursor.close()
 
@@ -32,8 +30,4 @@ def get_engine(db_url: str, connect_args: dict | None = None):
 
 
 def init_db(engine) -> None:
-    """
-    Initializes all tables defined in the Base.
-    """
-
     Base.metadata.create_all(engine)

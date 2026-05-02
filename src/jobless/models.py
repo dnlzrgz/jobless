@@ -1,37 +1,18 @@
 from datetime import date, datetime
-from enum import StrEnum
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, func
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, String, Table, func
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     mapped_column,
     relationship,
-    validates,
 )
-from email_validator import validate_email, EmailNotValidError
+
+from jobless.enums import Location, Status
 
 
 class Base(DeclarativeBase):
     pass
-
-
-class Status(StrEnum):
-    SAVED = "Saved"
-    APPLIED = "Applied"
-    INTERVIEWING = "Interviewing"
-    OFFER = "Offer"
-    ACCEPTED = "Accepted"
-    REJECTED = "Rejected"
-    GHOSTED = "Ghosted"
-    CLOSED = "Closed"
-    WITHDRAWN = "Withdrawn"
-
-
-class Location(StrEnum):
-    REMOTE = "Remote"
-    HYBRID = "Hybrid"
-    ON_SITE = "On-site"
 
 
 application_skill_link = Table(
@@ -45,21 +26,6 @@ application_skill_link = Table(
     Column(
         "skill_id",
         ForeignKey("skills.id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-)
-
-company_contact_link = Table(
-    "company_contact_link",
-    Base.metadata,
-    Column(
-        "company_id",
-        ForeignKey("companies.id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-    Column(
-        "contact_id",
-        ForeignKey("contacts.id", ondelete="CASCADE"),
         primary_key=True,
     ),
 )
@@ -94,117 +60,50 @@ class TimestampMixin:
 
 class Company(Base, TimestampMixin):
     __tablename__ = "companies"
-
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, index=True, unique=True)
     url: Mapped[str | None] = mapped_column(String, unique=True)
     industry: Mapped[str | None] = mapped_column(String)
 
-    notes: Mapped[str | None] = mapped_column(String)
-
-    applications: Mapped[list[Application]] = relationship(
-        back_populates="company",
-        cascade="all, delete",
-    )
-    contacts: Mapped[list[Contact]] = relationship(
-        back_populates="companies",
-        secondary=company_contact_link,
-    )
-
-    @validates("name")
-    def validate_name(self, key, name):
-        if not name or not name.strip():
-            raise ValueError("company name cannot be empty")
-
-        return name
-
-
-class Application(Base, TimestampMixin):
-    __tablename__ = "applications"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(String, index=True)
-    description: Mapped[str | None] = mapped_column(String)
-    salary_range: Mapped[str | None] = mapped_column(String)
-
-    platform: Mapped[str | None] = mapped_column(String)
-    url: Mapped[str | None] = mapped_column(String, unique=True)
-    address: Mapped[str | None] = mapped_column(String, unique=True)
-    location_type: Mapped[Location] = mapped_column(String, default=Location.ON_SITE)
-    status: Mapped[Status] = mapped_column(String, default=Status.SAVED, index=True)
-    priority: Mapped[int] = mapped_column(Integer, default=0)
-
-    date_applied: Mapped[date | None] = mapped_column()
-    follow_up_date: Mapped[date | None] = mapped_column()
-
-    notes: Mapped[str | None] = mapped_column(String)
-
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
-    company: Mapped[Company] = relationship(back_populates="applications")
-
-    contacts: Mapped[list[Contact]] = relationship(
-        back_populates="applications",
-        secondary=application_contact_link,
-    )
-    skills: Mapped[list[Skill]] = relationship(
-        back_populates="applications",
-        secondary=application_skill_link,
-    )
-
-    @validates("title")
-    def validate_title(self, key, title):
-        if not title or not title.strip():
-            raise ValueError("application title cannot be empty")
-
-        return title
-
 
 class Skill(Base, TimestampMixin):
     __tablename__ = "skills"
-
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String, index=True, unique=True)
-
-    applications: Mapped[list[Application]] = relationship(
-        back_populates="skills",
-        secondary=application_skill_link,
+    name: Mapped[str] = mapped_column(
+        String,
+        index=True,
+        unique=True,
     )
 
 
 class Contact(Base, TimestampMixin):
     __tablename__ = "contacts"
-
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, index=True)
+    url: Mapped[str | None] = mapped_column(String, unique=True)
     email: Mapped[str | None] = mapped_column(String, index=True, unique=True)
     phone: Mapped[str | None] = mapped_column(String, unique=True)
+
+
+class Application(Base, TimestampMixin):
+    __tablename__ = "applications"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String, index=True)
+    description: Mapped[str | None] = mapped_column(String)
+    salary: Mapped[str | None] = mapped_column(String)
     url: Mapped[str | None] = mapped_column(String, unique=True)
-
+    location_type: Mapped[Location] = mapped_column(
+        Enum(Location),
+        default=Location.ON_SITE,
+    )
+    status: Mapped[Status] = mapped_column(
+        Enum(Status),
+        default=Status.SAVED,
+        index=True,
+    )
+    date_applied: Mapped[date | None] = mapped_column()
+    follow_up_date: Mapped[date | None] = mapped_column()
     notes: Mapped[str | None] = mapped_column(String)
-
-    companies: Mapped[list[Company]] = relationship(
-        back_populates="contacts",
-        secondary=company_contact_link,
-    )
-    applications: Mapped[list[Application]] = relationship(
-        back_populates="contacts",
-        secondary=application_contact_link,
-    )
-
-    @validates("name")
-    def validate_name(self, key, name):
-        if not name or not name.strip():
-            raise ValueError("contact name cannot be empty")
-
-        return name
-
-    @validates("email")
-    def validate_email(self, key, email):
-        if not email:
-            return
-
-        try:
-            email_info = validate_email(email, check_deliverability=False)
-            return email_info.normalized
-        except EmailNotValidError as e:
-            raise ValueError(f"failed email validation: {e}")
+    company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"))
+    contacts: Mapped[list[Contact]] = relationship(secondary=application_contact_link)
+    skills: Mapped[list[Skill]] = relationship(secondary=application_skill_link)
