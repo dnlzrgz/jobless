@@ -2,7 +2,7 @@ import os
 import tomllib
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Any, Self
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -14,7 +14,7 @@ DB_URL: Path = APP_DIR / "jobs.db"
 CONFIG_FILE_PATH = APP_DIR / "config.toml"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Settings:
     theme: str = field(
         default="tokyo-night",
@@ -25,29 +25,34 @@ class Settings:
         metadata={"env": "JOBLESS_DB_URL"},
     )
 
-    @classmethod
-    def load(cls) -> Self:
-        # Make sure the directory exists.
-        APP_DIR.mkdir(parents=True, exist_ok=True)
 
-        load_dotenv()
-        config_data: dict[str, Any] = {}
+def load_settings(
+    app_dir: Path = APP_DIR, config_path: Path = CONFIG_FILE_PATH
+) -> Settings:
+    # Make sure the directory exists.
+    app_dir.mkdir(parents=True, exist_ok=True)
+    load_dotenv()
 
-        if CONFIG_FILE_PATH.exists():
-            with open(CONFIG_FILE_PATH, "rb") as f:
-                config_data.update(tomllib.load(f))
+    config_data: dict[str, Any] = {}
 
-        for f in fields(cls):
-            env_key = f.metadata.get("env")
-            if not env_key:
-                continue
+    if config_path.exists():
+        with open(config_path, "rb") as f:
+            data = tomllib.load(f)
+            if isinstance(data, dict):
+                config_data.update(data)
 
-            env_val = os.getenv(env_key)
-            if env_val:
-                config_data[f.name] = env_val
+    for f in fields(Settings):
+        env_key = f.metadata.get("env")
+        if not env_key:
+            continue
 
-        return cls(**config_data)
+        env_val = os.getenv(env_key)
+        if env_val:
+            config_data[f.name] = env_val
+
+    return Settings(**config_data)
 
 
 if __name__ == "__main__":
-    print(Settings.load())
+    settings = load_settings(APP_DIR, CONFIG_FILE_PATH)
+    print(settings)
