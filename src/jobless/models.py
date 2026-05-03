@@ -105,5 +105,6 @@ class Application(Base, TimestampMixin):
     follow_up_date: Mapped[date | None] = mapped_column()
     notes: Mapped[str | None] = mapped_column(String)
     company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"))
+    company: Mapped["Company"] = relationship()
     contacts: Mapped[list[Contact]] = relationship(secondary=application_contact_link)
     skills: Mapped[list[Skill]] = relationship(secondary=application_skill_link)

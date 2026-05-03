@@ -4,13 +4,6 @@ from pathlib import Path
 
 
 def get_app_dir(app_name: str) -> Path:
-    """
-    Returns the standard OS-specific config directory.
-    Windows: %APPDATA%/app_slug
-    macOS: ~/Library/Application Support/app_name
-    Linux: XDG_CONFIG_HOME/slug-name or ~/.config/app_slug
-    """
-
     app_slug = app_name.lower().replace(" ", "-")
 
     if sys.platform.startswith("win"):

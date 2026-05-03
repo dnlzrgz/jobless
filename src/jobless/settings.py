@@ -6,12 +6,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from jobless.constants import APP_NAME
-from jobless.utils import get_app_dir
-
-APP_DIR: Path = get_app_dir(app_name=APP_NAME)
-DB_URL: Path = APP_DIR / "jobs.db"
-CONFIG_FILE_PATH = APP_DIR / "config.toml"
+from jobless.constants import APP_DIR, CONFIG_FILE_PATH, DB_URL
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +22,8 @@ class Settings:
 
 
 def load_settings(
-    app_dir: Path = APP_DIR, config_path: Path = CONFIG_FILE_PATH
+    app_dir: Path = APP_DIR,
+    config_path: Path = CONFIG_FILE_PATH,
 ) -> Settings:
     # Make sure the directory exists.
     app_dir.mkdir(parents=True, exist_ok=True)
@@ -54,5 +50,5 @@ def load_settings(
 
 
 if __name__ == "__main__":
-    settings = load_settings(APP_DIR, CONFIG_FILE_PATH)
+    settings = load_settings()
     print(settings)

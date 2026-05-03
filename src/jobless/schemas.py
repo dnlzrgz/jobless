@@ -59,10 +59,9 @@ class Application:
     date_applied: date | None = None
     follow_up_date: date | None = None
     notes: str | None = None
-
-    company_id: int | None = None
-    contacts_ids: list[int] = field(default_factory=list)
-    skills_ids: list[int] = field(default_factory=list)
+    company: Company
+    contacts: list[Contact] = field(default_factory=list)
+    skills: list[Skill] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.title.strip():
