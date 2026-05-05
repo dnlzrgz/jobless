@@ -6,8 +6,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from jobless.db import get_engine, init_db
-from jobless.models import Application, Company, Contact, Location, Skill, Status
-from jobless.settings import Settings
+from jobless.enums import Location, Status
+from jobless.models import Application, Company, Contact, Skill
+from jobless.settings import load_settings
 
 try:
     from faker import Faker
@@ -17,57 +18,56 @@ except ImportError:
     sys.exit(1)
 
 fake = Faker()
+settings = load_settings()
+
 SKILLS = {
     "python",
     "rust",
+    "go",
+    "typescript",
     "sql",
-    "textual",
     "docker",
+    "kubernetes",
     "aws",
+    "gcp",
+    "azure",
     "fastapi",
+    "django",
     "react",
+    "vue",
+    "svelte",
     "javascript",
     "css",
     "tailwind css",
+    "graphql",
+    "postgres",
+    "redis",
+    "kafka",
+    "textual",
 }
-SETTINGS = Settings.load()
 
 
 def is_empty(session: Session) -> bool:
-    statement = select(func.count()).select_from(Company)
+    statement = select(func.count()).select_from(Application)
     return session.scalar(statement) == 0
 
 
 def seed_data():
     start_time = time.perf_counter()
 
-    engine = get_engine(db_url=SETTINGS.db_url)
+    engine = get_engine(db_url=settings.db_url)
     init_db(engine)
 
     SessionLocal = sessionmaker(bind=engine)
 
     with SessionLocal() as session:
         if not is_empty(session):
-            print(f"⚠️ database {SETTINGS.db_url} is not empty!")
+            print(f"⚠️ database {settings.db_url} is not empty!")
             sys.exit(1)
-
-        print(f"✨ starting seed for: {SETTINGS.db_url}")
 
         print("🌱 adding skills...")
         skills = [Skill(name=name) for name in SKILLS]
         session.add_all(skills)
-
-        print("🌱 adding contacts...")
-        contacts = [
-            Contact(
-                name=fake.name(),
-                email=fake.unique.email(),
-                phone=fake.unique.phone_number(),
-                url=fake.unique.url(),
-            )
-            for _ in range(randint(20, 100))
-        ]
-        session.add_all(contacts)
         session.flush()
 
         print("🌱 adding companies...")
@@ -76,16 +76,15 @@ def seed_data():
                 name=fake.unique.company(),
                 url=fake.unique.url(),
                 industry=fake.bs(),
-                contacts=sample(contacts, randint(1, 2)),
             )
-            for _ in range(randint(50, 200))
+            for _ in range(randint(10, 50))
         ]
         session.add_all(companies)
         session.flush()
 
         print("🌱 adding applications...")
         applications = []
-        for _ in range(randint(100, 500)):
+        for _ in range(randint(100, 200)):
             applied_date = fake.date_between(start_date="-2y", end_date="today")
             updated_date = fake.date_between(start_date=applied_date, end_date="today")
             follow_up_date = (
@@ -97,25 +96,28 @@ def seed_data():
             application = Application(
                 title=fake.job(),
                 description=fake.paragraph(),
-                salary_range=f"${randint(20, 50)}k - ${randint(110, 200)}k",
-                platform=choice(["LinkedIn", "Indeed", "Direct", "Referral"]),
+                salary=f"${randint(20, 50)}k - ${randint(110, 200)}k",
                 url=fake.unique.url(),
                 location_type=choice(list(Location)),
                 status=choice(list(Status)),
-                priority=randint(0, 4),
                 date_applied=applied_date,
-                created_at=applied_date,
                 follow_up_date=follow_up_date,
                 last_updated=updated_date,
                 company=choice(companies),
                 skills=sample(skills, randint(2, 3)),
-                contacts=sample(contacts, 1),
+                contacts=[
+                    Contact(
+                        name=fake.name(),
+                        email=fake.unique.email(),
+                        phone=fake.unique.phone_number(),
+                        url=fake.unique.url(),
+                    )
+                    for _ in range(randint(2, 3))
+                ],
             )
             applications.append(application)
 
         session.add_all(applications)
-
-        print("💾 finalizing transaction...")
         session.commit()
 
     print(f"✅ seeded in {time.perf_counter() - start_time:.2f}s")

@@ -8,7 +8,7 @@ from jobless.enums import Location, Status
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Skill:
-    id: int
+    id: int | None = None
     name: str
 
     def __post_init__(self):
@@ -18,7 +18,7 @@ class Skill:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Company:
-    id: int
+    id: int | None = None
     name: str
     url: str | None = None
     industry: str | None = None
@@ -30,7 +30,7 @@ class Company:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Contact:
-    id: int
+    id: int | None = None
     name: str
     email: str | None = None
     phone: str | None = None
@@ -49,7 +49,7 @@ class Contact:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Application:
-    id: int
+    id: int | None = None
     title: str
     description: str | None = None
     salary: str | None = None

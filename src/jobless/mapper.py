@@ -1,17 +1,10 @@
-from functools import lru_cache
-
 from jobless import models, schemas
 
 
 class Mapper:
     @staticmethod
-    @lru_cache(maxsize=256)
-    def _create_skill_schema(id: int, name: str) -> schemas.Skill:
-        return schemas.Skill(id=id, name=name)
-
-    @classmethod
-    def skill_model_to_schema(cls, model: models.Skill) -> schemas.Skill:
-        return cls._create_skill_schema(model.id, model.name)
+    def skill_model_to_schema(model: models.Skill) -> schemas.Skill:
+        return schemas.Skill(id=model.id, name=model.name)
 
     @staticmethod
     def skill_schema_to_model(schema: schemas.Skill) -> models.Skill:

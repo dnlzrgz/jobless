@@ -56,12 +56,3 @@ def test_application_deep_mapping():
 
     assert len(schema.skills) == len(model.skills)
     assert len(schema.contacts) == len(model.contacts)
-
-
-def test_mapper_skill_caching():
-    model = make_skill_model()
-
-    schema1 = Mapper.skill_model_to_schema(model)
-    schema2 = Mapper.skill_model_to_schema(model)
-
-    assert schema1 is schema2
