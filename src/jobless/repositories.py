@@ -61,6 +61,14 @@ class ApplicationRepository:
             self._mapper.application_model_to_schema(instance) for instance in instances
         ]
 
+    def list_by_company(self, company_id: int) -> list[schemas.Application]:
+        instances = self._session.scalars(
+            select(models.Application).where(
+                models.Application.company_id == company_id
+            )
+        ).all()
+        return [self._mapper.application_model_to_schema(i) for i in instances]
+
     def update(self, schema: schemas.Application) -> schemas.Application | None:
         assert schema.id
 

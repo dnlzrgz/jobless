@@ -1,7 +1,7 @@
 import typer
 from sqlalchemy.orm import sessionmaker
 
-from jobless.commands import applications, skills
+from jobless.commands import applications, skills, companies
 from jobless.context import AppContext
 from jobless.db import get_engine
 from jobless.mapper import Mapper
@@ -36,6 +36,11 @@ cli.add_typer(
     skills.cli,
     name="skill",
     help="view and remove skills",
+)
+cli.add_typer(
+    companies.cli,
+    name="company",
+    help="create, view, and manage companies.",
 )
 
 if __name__ == "__main__":
