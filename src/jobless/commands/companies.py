@@ -3,6 +3,7 @@ from typing import Annotated
 import typer
 
 from jobless import schemas
+from jobless.commands.utils import resolve_field
 from jobless.context import AppContext
 from jobless.repositories import ApplicationRepository, CompanyRepository
 
@@ -45,8 +46,8 @@ def create(
     Add a new company.
 
     Examples:
-      $ jobless companies add --name Acme
-      $ jobless companies add -n Acme --industry "software" --url https://initech.com
+      $ jobless company add --name Acme
+      $ jobless company add -n Acme --industry "software" --url https://initech.com
     """
     context: AppContext = ctx.obj
     with context.get_session() as session:
@@ -96,17 +97,9 @@ def update(
     Only the fields provided will be changed. To clear an optional field,
 
     Examples:
-        $ jobless companies update 1 --name "Acme Corp"
-        $ jobless companies update 1 --industry ''
+        $ jobless company update 1 --name "Acme Corp"
+        $ jobless company update 1 --industry ''
     """
-
-    def resolve(new, existing):
-        if new is None:
-            return existing
-        if new == "":
-            return None
-
-        return new
 
     context: AppContext = ctx.obj
     with context.get_session() as session:
@@ -120,8 +113,8 @@ def update(
         updated = schemas.Company(
             id=existing.id,
             name=name if name is not None else existing.name,
-            url=resolve(url, existing.url),
-            industry=resolve(industry, existing.industry),
+            url=resolve_field(url, existing.url),
+            industry=resolve_field(industry, existing.industry),
         )
 
         company_repo.update(updated)
@@ -164,8 +157,8 @@ def delete(
     before they are removed alongside it.
 
     Examples:
-      $ jobless companies del 1
-      $ jobless companies del 1 3
+      $ jobless company del 1
+      $ jobless company del 1 3
     """
 
     context: AppContext = ctx.obj

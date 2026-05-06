@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 
 from jobless import schemas
+from jobless.commands.utils import resolve_field
 from jobless.context import AppContext
 from jobless.enums import Location, Status
 from jobless.repositories import (
@@ -228,14 +229,6 @@ def update(
       $ jobless app update 3 --notes ''
     """
 
-    def resolve(new, existing):
-        if new is None:
-            return existing
-        if new == "":
-            return None
-
-        return new
-
     context: AppContext = ctx.obj
     with context.get_session() as session:
         app_repo = ApplicationRepository(session, context.mapper)
@@ -262,15 +255,15 @@ def update(
             id=existing_app.id,
             title=title if title is not None else existing_app.title,
             company=target_company,
-            description=resolve(description, existing_app.description),
-            salary=resolve(salary, existing_app.salary),
-            url=resolve(url, existing_app.url),
+            description=resolve_field(description, existing_app.description),
+            salary=resolve_field(salary, existing_app.salary),
+            url=resolve_field(url, existing_app.url),
             location_type=location_type
             if location_type is not None
             else existing_app.location_type,
             status=status if status is not None else existing_app.status,
-            date_applied=resolve(date_applied, existing_app.date_applied),
-            notes=resolve(notes, existing_app.notes),
+            date_applied=resolve_field(date_applied, existing_app.date_applied),
+            notes=resolve_field(notes, existing_app.notes),
             skills=target_skills,
             contacts=existing_app.contacts,
         )
