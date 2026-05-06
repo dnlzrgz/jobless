@@ -1,484 +1,241 @@
-from dataclasses import fields
-from datetime import date
-from typing import Any, Generic, TypeVar
+from sqlalchemy import select
+from sqlalchemy.orm import Session, joinedload, selectinload
 
-from sqlalchemy import and_, select
-from sqlalchemy.orm import joinedload, selectinload, sessionmaker
-
-from jobless.models import Application, Base, Company, Contact, Skill, Status
-from jobless.schemas import (
-    ApplicationSchema,
-    BaseSchema,
-    CompanySchema,
-    ContactSchema,
-    LookupSchema,
-    SkillSchema,
-)
-
-T = TypeVar("T", bound=Base)
-S = TypeVar("S", bound=BaseSchema)
+from jobless import models, schemas
+from jobless.mapper import Mapper
 
 
-class GenericRepository(Generic[T, S]):
-    def __init__(self, model: type[T], schema: type[S], session_factory: sessionmaker):
-        self.model = model
-        self.schema = schema
-        self.session_factory = session_factory
+class ApplicationRepository:
+    def __init__(self, session: Session, mapper: Mapper) -> None:
+        self._session = session
+        self._mapper = mapper
 
-    def _get_model_kwargs(self, schema: S) -> dict:
-        model_kwargs = {}
-        for f in fields(schema):
-            if f.name == "id" or isinstance(getattr(schema, f.name), list):
-                continue
+    def _get(self, id: int) -> models.Application | None:
+        return self._session.scalars(
+            select(models.Application)
+            .where(models.Application.id == id)
+            .options(
+                joinedload(models.Application.company),
+                selectinload(models.Application.skills),
+                selectinload(models.Application.contacts),
+            )
+        ).one_or_none()
 
-            value = getattr(schema, f.name)
-            if isinstance(value, BaseSchema):
-                model_kwargs[f"{f.name}_id"] = value.id
-            else:
-                model_kwargs[f.name] = value
+    def add(self, schema: schemas.Application) -> schemas.Application:
+        application = models.Application(
+            title=schema.title,
+            description=schema.description,
+            salary=schema.salary,
+            url=schema.url,
+            location_type=schema.location_type,
+            status=schema.status,
+            date_applied=schema.date_applied,
+            follow_up_date=schema.follow_up_date,
+            notes=schema.notes,
+            company_id=schema.company.id if schema.company else None,
+        )
 
-        return model_kwargs
+        if schema.skills:
+            skill_ids = [s.id for s in schema.skills]
+            application.skills = self._session.scalars(
+                select(models.Skill).where(models.Skill.id.in_(skill_ids))
+            ).all()
 
-    def _apply_filters(self, statement, **filters):
-        for key, val in filters.items():
-            if val is None or not hasattr(self.model, key):
-                continue
+        if schema.contacts:
+            contact_ids = [c.id for c in schema.contacts]
+            application.contacts = self._session.scalars(
+                select(models.Contact).where(models.Contact.id.in_(contact_ids))
+            ).all()
 
-            column = getattr(self.model, key)
-            if isinstance(val, (list, tuple, set)):
-                statement = statement.where(column.in_(val))
-            else:
-                statement = statement.where(column == val)
+        self._session.add(application)
+        self._session.flush()
+        return self._mapper.application_model_to_schema(application)
 
-        return statement
+    def get(self, id: int) -> schemas.Application | None:
+        instance = self._get(id)
+        return self._mapper.application_model_to_schema(instance) if instance else None
 
-    def add(self, schema: S) -> S:
-        raise NotImplementedError
+    def list(self) -> list[schemas.Application]:
+        instances = self._session.scalars(select(models.Application)).all()
+        return [
+            self._mapper.application_model_to_schema(instance) for instance in instances
+        ]
 
-    def get_by_id(self, id: int) -> LookupSchema | None:
-        session = self.session_factory()
-        try:
-            instance = session.get(self.model, id)
-            if instance:
-                return LookupSchema.from_model(instance)
-        finally:
-            session.close()
+    def update(self, schema: schemas.Application) -> schemas.Application | None:
+        assert schema.id
 
-    def get_with_details(self, id: int) -> S | None:
-        raise NotImplementedError
+        instance = self._get(schema.id)
+        if not instance:
+            return None
 
-    def list(self, **filters) -> list[LookupSchema]:
-        session = self.session_factory()
+        instance.title = schema.title
+        instance.description = schema.description
+        instance.salary = schema.salary
+        instance.url = schema.url
+        instance.location_type = schema.location_type
+        instance.status = schema.status
+        instance.date_applied = schema.date_applied
+        instance.follow_up_date = schema.follow_up_date
+        instance.notes = schema.notes
+        instance.company_id = schema.company.id if schema.company else None
 
-        try:
-            statement = select(self.model)
-            statement = self._apply_filters(statement, **filters)
-            instances = session.scalars(statement).all()
-            return [LookupSchema.from_model(instance) for instance in instances]
-        finally:
-            session.close()
+        instance.skills = (
+            self._session.scalars(
+                select(models.Skill).where(
+                    models.Skill.id.in_([s.id for s in schema.skills])
+                )
+            ).all()
+            if schema.skills
+            else []
+        )
 
-    def list_with_details(self) -> list[S]:
-        raise NotImplementedError
+        instance.contacts = (
+            self._session.scalars(
+                select(models.Contact).where(
+                    models.Contact.id.in_([c.id for c in schema.contacts])
+                )
+            ).all()
+            if schema.contacts
+            else []
+        )
 
-    def _list_unique_values(self, column: Any) -> set[Any]:
-        session = self.session_factory()
-        try:
-            statement = select(column).where(column.is_not(None))
-            return set(session.scalars(statement).all())
-        finally:
-            session.close()
-
-    def update(self, schema: S) -> S | None:
-        raise NotImplementedError
+        self._session.flush()
+        return self._mapper.application_model_to_schema(instance)
 
     def delete(self, id: int) -> None:
-        session = self.session_factory()
-        try:
-            instance = session.get(self.model, id)
-            if instance:
-                session.delete(instance)
-                session.commit()
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
+        instance = self._session.get(models.Application, id)
+        if instance:
+            self._session.delete(instance)
+            self._session.flush()
 
 
-class CompanyRepository(GenericRepository[Company, CompanySchema]):
-    def __init__(self, session_factory: sessionmaker):
-        super().__init__(Company, CompanySchema, session_factory)
+class CompanyRepository:
+    def __init__(self, session: Session, mapper: Mapper) -> None:
+        self._session = session
+        self._mapper = mapper
 
-    def add(self, schema: CompanySchema) -> CompanySchema:
-        session = self.session_factory()
-        try:
-            company = Company(**self._get_model_kwargs(schema))
+    def _get(self, id: int) -> models.Company | None:
+        return self._session.get(models.Company, id)
 
-            if schema.contacts:
-                ids = [contact.id for contact in schema.contacts]
-                company.contacts = (
-                    session.query(Contact).filter(Contact.id.in_(ids)).all()
-                )
+    def get_or_create(self, name: str) -> schemas.Company:
+        instance = self._session.scalar(
+            select(models.Company).where(models.Company.name == name)
+        )
+        if not instance:
+            instance = models.Company(name=name)
+            self._session.add(instance)
+            self._session.flush()
 
-            session.add(company)
-            session.commit()
+        return self._mapper.company_model_to_schema(instance)
 
-            return CompanySchema.from_model(company)
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
+    def add(self, schema: schemas.Company) -> schemas.Company:
+        company = self._mapper.company_schema_to_model(schema)
+        self._session.add(company)
 
-    def get_with_details(self, id: int) -> CompanySchema | None:
-        session = self.session_factory()
-        try:
-            statement = (
-                select(Company)
-                .where(Company.id == id)
-                .options(
-                    selectinload(Company.applications),
-                    selectinload(Company.contacts),
-                )
-            )
-            company = session.scalars(statement).one_or_none()
-            if company:
-                return CompanySchema.from_model(company)
-        finally:
-            session.close()
+        self._session.flush()
+        return self._mapper.company_model_to_schema(company)
 
-    def list_with_details(self, **filters) -> list[CompanySchema]:
-        session = self.session_factory()
-        try:
-            statement = select(self.model).options(
-                selectinload(Company.applications),
-                selectinload(Company.contacts),
-            )
-            statement = self._apply_filters(statement, **filters)
+    def get(self, id: int) -> schemas.Company | None:
+        instance = self._get(id)
+        return self._mapper.company_model_to_schema(instance) if instance else None
 
-            instances = session.scalars(statement).all()
-            return [CompanySchema.from_model(instance) for instance in instances]
-        finally:
-            session.close()
+    def list(self) -> list[schemas.Company]:
+        instances = self._session.scalars(select(models.Company)).all()
+        return [self._mapper.company_model_to_schema(i) for i in instances]
 
-    def list_names(self) -> set[str]:
-        return self._list_unique_values(Company.name)
+    def update(self, schema: schemas.Company) -> schemas.Company | None:
+        assert schema.id
 
-    def list_urls(self) -> set[str]:
-        return self._list_unique_values(Company.url)
+        instance = self._get(schema.id)
+        if not instance:
+            return None
 
-    def update(self, schema: CompanySchema) -> CompanySchema | None:
-        session = self.session_factory()
-        try:
-            instance = session.get(Company, schema.id)
-            if not instance:
-                return
+        instance.name = schema.name
+        instance.url = schema.url
+        instance.industry = schema.industry
 
-            for key, value in self._get_model_kwargs(schema).items():
-                setattr(instance, key, value)
+        self._session.flush()
+        return self._mapper.company_model_to_schema(instance)
 
-            contact_ids = [contact.id for contact in schema.contacts]
-            instance.contacts = (
-                session.query(Contact).filter(Contact.id.in_(contact_ids)).all()
-            )
-
-            session.commit()
-            return CompanySchema.from_model(instance)
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
+    def delete(self, id: int) -> None:
+        instance = self._get(id)
+        if instance:
+            self._session.delete(instance)
+            self._session.flush()
 
 
-class ApplicationRepository(GenericRepository[Application, ApplicationSchema]):
-    def __init__(self, session_factory: sessionmaker):
-        super().__init__(Application, ApplicationSchema, session_factory)
+class ContactRepository:
+    def __init__(self, session: Session, mapper: Mapper) -> None:
+        self._session = session
+        self._mapper = mapper
 
-    def add(self, schema: ApplicationSchema) -> ApplicationSchema:
-        session = self.session_factory()
-        try:
-            application = Application(**self._get_model_kwargs(schema))
+    def _get(self, id: int) -> models.Contact | None:
+        return self._session.get(models.Contact, id)
 
-            if schema.skills:
-                ids = [skill.id for skill in schema.skills]
-                application.skills = (
-                    session.query(Skill).filter(Skill.id.in_(ids)).all()
-                )
+    def add(self, schema: schemas.Contact) -> schemas.Contact:
+        contact = self._mapper.contact_schema_to_model(schema)
+        self._session.add(contact)
+        self._session.flush()
+        return self._mapper.contact_model_to_schema(contact)
 
-            if schema.contacts:
-                ids = [contact.id for contact in schema.contacts]
-                application.contacts = (
-                    session.query(Contact).filter(Contact.id.in_(ids)).all()
-                )
+    def get(self, id: int) -> schemas.Contact | None:
+        instance = self._get(id)
+        return self._mapper.contact_model_to_schema(instance) if instance else None
 
-            session.add(application)
-            session.commit()
+    def list(self) -> list[schemas.Contact]:
+        instances = self._session.scalars(select(models.Contact)).all()
+        return [self._mapper.contact_model_to_schema(i) for i in instances]
 
-            return ApplicationSchema.from_model(application)
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
+    def update(self, schema: schemas.Contact) -> schemas.Contact | None:
+        assert schema.id
 
-    def get_with_details(self, id: int) -> ApplicationSchema | None:
-        session = self.session_factory()
-        try:
-            statement = (
-                select(Application)
-                .where(Application.id == id)
-                .options(
-                    joinedload(Application.company),
-                    selectinload(Application.skills),
-                    selectinload(Application.contacts),
-                )
-            )
-            instance = session.scalars(statement).one_or_none()
-            if instance:
-                return ApplicationSchema.from_model(instance)
-        finally:
-            session.close()
+        instance = self._get(schema.id)
+        if not instance:
+            return None
 
-    def list_with_details(self, **filters) -> list[ApplicationSchema]:
-        session = self.session_factory()
-        try:
-            statement = select(self.model).options(
-                joinedload(Application.company),
-                selectinload(Application.skills),
-                selectinload(Application.contacts),
-            )
-            statement = self._apply_filters(statement, **filters)
+        instance.name = schema.name
+        instance.email = schema.email
+        instance.phone = schema.phone
+        instance.url = schema.url
 
-            instances = session.scalars(statement).all()
-            return [ApplicationSchema.from_model(instance) for instance in instances]
-        finally:
-            session.close()
+        self._session.flush()
+        return self._mapper.contact_model_to_schema(instance)
 
-    def list_urls(self) -> set[str]:
-        return self._list_unique_values(Application.url)
-
-    def list_stale(
-        self,
-        before_date: date,
-        statuses: list[Status],
-    ) -> list[ApplicationSchema]:
-        session = self.session_factory()
-        try:
-            statement = (
-                select(Application)
-                .where(
-                    and_(
-                        Application.last_updated < before_date,
-                        Application.status.in_(statuses),
-                    )
-                )
-                .options(
-                    joinedload(Application.company),
-                    selectinload(Application.skills),
-                    selectinload(Application.contacts),
-                )
-            )
-            instances = session.scalars(statement).all()
-            return [ApplicationSchema.from_model(instance) for instance in instances]
-        finally:
-            session.close()
-
-    def update(self, schema: ApplicationSchema) -> ApplicationSchema | None:
-        session = self.session_factory()
-        try:
-            instance = session.get(Application, schema.id)
-            if not instance:
-                return
-
-            for key, value in self._get_model_kwargs(schema).items():
-                setattr(instance, key, value)
-
-            skill_ids = [s.id for s in schema.skills]
-            instance.skills = session.query(Skill).filter(Skill.id.in_(skill_ids)).all()
-
-            contact_ids = [contact.id for contact in schema.contacts]
-            instance.contacts = (
-                session.query(Contact).filter(Contact.id.in_(contact_ids)).all()
-            )
-
-            session.commit()
-            return ApplicationSchema.from_model(instance)
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
+    def delete(self, id: int) -> None:
+        instance = self._get(id)
+        if instance:
+            self._session.delete(instance)
+            self._session.flush()
 
 
-class SkillRepository(GenericRepository[Skill, SkillSchema]):
-    def __init__(self, session_factory: sessionmaker):
-        super().__init__(Skill, SkillSchema, session_factory)
+class SkillRepository:
+    def __init__(self, session: Session, mapper: Mapper) -> None:
+        self._session = session
+        self._mapper = mapper
 
-    def add(self, schema: SkillSchema) -> SkillSchema:
-        session = self.session_factory()
-        try:
-            existing_skill = session.scalar(
-                select(Skill).where(Skill.name == schema.name)
-            )
-            if existing_skill:
-                return SkillSchema.from_model(existing_skill)
+    def get_or_create(self, name: str) -> schemas.Skill:
+        instance = self._session.scalar(
+            select(models.Skill).where(models.Skill.name == name)
+        )
+        if not instance:
+            instance = models.Skill(name=name)
+            self._session.add(instance)
+            self._session.flush()
 
-            new_skill = Skill(name=schema.name)
+        return self._mapper.skill_model_to_schema(instance)
 
-            if schema.applications:
-                ids = [application.id for application in schema.applications]
-                new_skill.applications = (
-                    session.query(Application).filter(Application.id.in_(ids)).all()
-                )
+    def list(self) -> list[schemas.Skill]:
+        instances = self._session.scalars(select(models.Skill)).all()
+        return [self._mapper.skill_model_to_schema(i) for i in instances]
 
-            session.add(new_skill)
-            session.commit()
+    def list_orphaned(self) -> list[schemas.Skill]:
+        instances = self._session.scalars(
+            select(models.Skill).where(~models.Skill.applications.any())
+        ).all()
+        return [self._mapper.skill_model_to_schema(i) for i in instances]
 
-            return SkillSchema.from_model(new_skill)
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
-
-    def get_with_details(self, id: int) -> SkillSchema | None:
-        session = self.session_factory()
-        try:
-            statement = (
-                select(Skill)
-                .where(Skill.id == id)
-                .options(
-                    selectinload(Skill.applications),
-                )
-            )
-            instance = session.scalars(statement).one_or_none()
-            if instance:
-                return SkillSchema.from_model(instance)
-        finally:
-            session.close()
-
-    def list_with_details(self, **filters) -> list[SkillSchema]:
-        session = self.session_factory()
-        try:
-            statement = select(self.model).options(
-                selectinload(Skill.applications),
-            )
-            statement = self._apply_filters(statement, **filters)
-
-            instances = session.scalars(statement).all()
-            return [SkillSchema.from_model(instance) for instance in instances]
-        finally:
-            session.close()
-
-    def list_orphaned(self) -> list[SkillSchema]:
-        session = self.session_factory()
-        try:
-            statement = select(Skill).where(~Skill.applications.any())
-            instances = session.scalars(statement).all()
-            return [SkillSchema.from_model(instance) for instance in instances]
-        finally:
-            session.close()
-
-
-class ContactRepository(GenericRepository[Contact, ContactSchema]):
-    def __init__(self, session_factory: sessionmaker):
-        super().__init__(Contact, ContactSchema, session_factory)
-
-    def add(self, schema: ContactSchema) -> ContactSchema:
-        session = self.session_factory()
-        try:
-            contact = Contact(**self._get_model_kwargs(schema))
-
-            if schema.companies:
-                ids = [company.id for company in schema.companies]
-                contact.companies = (
-                    session.query(Company).filter(Company.id.in_(ids)).all()
-                )
-
-            if schema.applications:
-                ids = [application.id for application in schema.applications]
-                contact.applications = (
-                    session.query(Application).filter(Application.id.in_(ids)).all()
-                )
-
-            session.add(contact)
-            session.commit()
-
-            return ContactSchema.from_model(contact)
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
-
-    def get_with_details(self, id: int) -> ContactSchema | None:
-        session = self.session_factory()
-        try:
-            statement = (
-                select(Contact)
-                .where(Contact.id == id)
-                .options(
-                    selectinload(Contact.applications),
-                    selectinload(Contact.companies),
-                )
-            )
-            instance = session.scalars(statement).one_or_none()
-            if instance:
-                return ContactSchema.from_model(instance)
-        finally:
-            session.close()
-
-    def list_with_details(self, **filters) -> list[ContactSchema]:
-        session = self.session_factory()
-        try:
-            statement = select(self.model).options(
-                selectinload(Contact.applications),
-                selectinload(Contact.companies),
-            )
-            statement = self._apply_filters(statement, **filters)
-
-            instances = session.scalars(statement).all()
-            return [ContactSchema.from_model(instance) for instance in instances]
-        finally:
-            session.close()
-
-    def list_emails(self) -> set[str]:
-        return self._list_unique_values(Contact.email)
-
-    def list_phones(self) -> set[str]:
-        return self._list_unique_values(Contact.phone)
-
-    def list_urls(self) -> set[str]:
-        return self._list_unique_values(Contact.url)
-
-    def update(self, schema: ContactSchema) -> ContactSchema | None:
-        session = self.session_factory()
-        try:
-            instance = session.get(Contact, schema.id)
-            if not instance:
-                return
-
-            for key, value in self._get_model_kwargs(schema).items():
-                setattr(instance, key, value)
-
-            company_ids = [company.id for company in schema.companies]
-            instance.companies = (
-                session.query(Company).filter(Company.id.in_(company_ids)).all()
-            )
-
-            application_ids = [application.id for application in schema.applications]
-            instance.applications = (
-                session.query(Application)
-                .filter(Application.id.in_(application_ids))
-                .all()
-            )
-
-            session.commit()
-            return ContactSchema.from_model(instance)
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
+    def delete(self, id: int) -> None:
+        instance = self._session.get(models.Skill, id)
+        if instance:
+            self._session.delete(instance)
+            self._session.flush()
