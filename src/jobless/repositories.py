@@ -213,6 +213,9 @@ class SkillRepository:
         self._session = session
         self._mapper = mapper
 
+    def get(self, id: int) -> models.Skill | None:
+        return self._session.get(models.Skill, id)
+
     def get_or_create(self, name: str) -> schemas.Skill:
         instance = self._session.scalar(
             select(models.Skill).where(models.Skill.name == name)
