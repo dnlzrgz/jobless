@@ -14,6 +14,8 @@ from jobless.repositories import (
 )
 
 cli = typer.Typer(
+    name="app",
+    help="manage job applications",
     no_args_is_help=True,
     suggest_commands=True,
 )

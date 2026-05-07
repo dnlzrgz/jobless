@@ -8,6 +8,8 @@ from jobless.context import AppContext
 from jobless.repositories import ApplicationRepository, CompanyRepository
 
 cli = typer.Typer(
+    name="company",
+    help="manage companies",
     no_args_is_help=True,
     suggest_commands=True,
 )

@@ -7,7 +7,12 @@ from jobless.commands.utils import resolve_field
 from jobless.context import AppContext
 from jobless.repositories import ContactRepository
 
-cli = typer.Typer(no_args_is_help=True)
+cli = typer.Typer(
+    name="contact",
+    help="manage contacts",
+    no_args_is_help=True,
+    suggest_commands=True,
+)
 
 
 @cli.command("add")

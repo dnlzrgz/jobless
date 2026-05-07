@@ -5,6 +5,8 @@ from jobless.context import AppContext
 from jobless.repositories import SkillRepository
 
 cli = typer.Typer(
+    name="skill",
+    help="view and remove skills",
     no_args_is_help=True,
     suggest_commands=True,
 )
