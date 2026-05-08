@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, contains_eager, joinedload, selectinload
 
 from jobless import models, schemas
+from jobless.enums import ApplicationSortField, SortOrder
 from jobless.mapper import Mapper
 
 
@@ -101,7 +102,30 @@ class ApplicationRepository:
                 models.Application.skills.any(models.Skill.name.in_(f.skills))
             )
 
-        stmt = stmt.order_by(models.Application.date_applied.desc())
+        match f.sort_by:
+            case ApplicationSortField.ID:
+                sort_col = models.Application.id
+            case ApplicationSortField.TITLE:
+                sort_col = models.Application.title
+            case ApplicationSortField.COMPANY:
+                stmt = stmt.join(models.Application.company)
+                sort_col = models.Company.name
+            case ApplicationSortField.STATUS:
+                sort_col = models.Application.status
+            case ApplicationSortField.FOLLOW_UP_DATE:
+                sort_col = models.Application.follow_up_date
+            case ApplicationSortField.CREATED:
+                sort_col = models.Application.created_at
+            case ApplicationSortField.UPDATED:
+                sort_col = models.Application.last_updated
+            case _:
+                sort_col = models.Application.date_applied
+
+        if f.sort_order == SortOrder.DESC:
+            stmt = stmt.order_by(sort_col.desc())
+        else:
+            stmt = stmt.order_by(sort_col.asc())
+
         instances = self._session.scalars(stmt).unique().all()
         return [self._mapper.application_model_to_schema(i) for i in instances]
 

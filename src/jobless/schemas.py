@@ -3,7 +3,12 @@ from datetime import date
 
 from email_validator import EmailNotValidError, validate_email
 
-from jobless.enums import Location, Status
+from jobless.enums import (
+    ApplicationSortField,
+    Location,
+    SortOrder,
+    Status,
+)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -80,3 +85,6 @@ class ApplicationFilter:
     applied_before: date | None = None
     follow_up_date_after: date | None = None
     follow_up_date_before: date | None = None
+
+    sort_by: ApplicationSortField = ApplicationSortField.DATE_APPLIED
+    sort_order: SortOrder = SortOrder.DESC

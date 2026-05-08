@@ -6,7 +6,7 @@ import typer
 from jobless import schemas
 from jobless.commands.utils import resolve_field
 from jobless.context import AppContext
-from jobless.enums import Location, Status
+from jobless.enums import ApplicationSortField, Location, SortOrder, Status
 from jobless.repositories import (
     ApplicationRepository,
     CompanyRepository,
@@ -357,6 +357,20 @@ def get_all(
             help="filter by follow-up date (on or before YYYY-MM-DD)",
         ),
     ] = None,
+    sort_by: Annotated[
+        ApplicationSortField,
+        typer.Option(
+            "--sort-by",
+            help="property to sort by",
+        ),
+    ] = ApplicationSortField.DATE_APPLIED,
+    sort_order: Annotated[
+        SortOrder,
+        typer.Option(
+            "--order",
+            help="sort order",
+        ),
+    ] = SortOrder.DESC,
 ):
     """
     List job applications with optional filters.
@@ -379,6 +393,8 @@ def get_all(
         applied_before=applied_before.date() if applied_before else None,
         follow_up_date_after=follow_up_after.date() if follow_up_after else None,
         follow_up_date_before=follow_up_before.date() if follow_up_before else None,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
     with context.get_session() as session:
         app_repo = ApplicationRepository(session, context.mapper)
