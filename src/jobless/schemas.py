@@ -5,6 +5,7 @@ from email_validator import EmailNotValidError, validate_email
 
 from jobless.enums import (
     ApplicationSortField,
+    CompanySortField,
     Location,
     SortOrder,
     Status,
@@ -86,7 +87,21 @@ class ApplicationFilter:
     follow_up_date_after: date | None = None
     follow_up_date_before: date | None = None
 
-    sort_by: ApplicationSortField = ApplicationSortField.DATE_APPLIED
+    sort_by: ApplicationSortField = ApplicationSortField.CREATED
+    sort_order: SortOrder = SortOrder.ASC
+
+    limit: int | None = None
+
+
+@dataclass(slots=True, kw_only=True)
+class CompanyFilter:
+    name: str | None = None
+    url: str | None = None
+    industry: str | None = None
+    min_applications: int | None = None
+    max_applications: int | None = None
+
+    sort_by: CompanySortField = CompanySortField.CREATED
     sort_order: SortOrder = SortOrder.DESC
 
     limit: int | None = None

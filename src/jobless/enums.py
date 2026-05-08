@@ -39,3 +39,11 @@ class ApplicationSortField(StrEnum):
     FOLLOW_UP_DATE = "follow_up"
     CREATED = "created"
     UPDATED = "updated"
+
+
+class CompanySortField(StrEnum):
+    ID = "id"
+    NAME = "name"
+    NUMBER_APPLICATIONS = "number_applications"
+    CREATED = "created"
+    UPDATED = "updated"

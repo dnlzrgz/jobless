@@ -55,6 +55,7 @@ def print_applications(apps: list[schemas.Application], format: OutputFormat):
         table.add_column("ID", style="dim")
         table.add_column("Title")
         table.add_column("Company")
+        table.add_column("URL")
         table.add_column("Status")
         table.add_column("Applied", justify="right")
         table.add_column("Follow Up", justify="right")
@@ -64,6 +65,7 @@ def print_applications(apps: list[schemas.Application], format: OutputFormat):
                 str(app.id),
                 app.title,
                 app.company.name,
+                app.url,
                 app.status.value,
                 app.date_applied.strftime("%Y-%m-%d") if app.date_applied else "-",
                 app.follow_up_date.strftime("%Y-%m-%d") if app.follow_up_date else "-",
@@ -72,14 +74,14 @@ def print_applications(apps: list[schemas.Application], format: OutputFormat):
     else:
         for app in apps:
             console.print(
-                f"[bold]{app.id}[/bold]  {app.title} @ {app.company.name} [dim]({app.status.value})[/dim]"
+                f"[bold]{app.id}[/]  {app.title} @ {app.company.name} [dim]({app.status.value})[/]"
             )
 
 
 def print_application(app: schemas.Application) -> None:
     meta = Text()
 
-    tags = [f"[bold]{app.status.value}[/bold]", app.location_type.value]
+    tags = [f"[bold]{app.status.value}[/]", app.location_type.value]
     if app.salary:
         tags.append(app.salary)
     meta.append_text(Text.from_markup(" · ".join(tags)))
@@ -137,11 +139,11 @@ def print_application(app: schemas.Application) -> None:
     if app.contacts:
         lines = []
         for c in app.contacts:
-            lines.append(f"[bold]{c.name}[/bold]")
+            lines.append(f"[bold]{c.name}[/]")
             if c.email:
-                lines.append(f"[dim]{c.email}[/dim]")
+                lines.append(f"[dim]{c.email}[/]")
             if c.phone:
-                lines.append(f"[dim]{c.phone}[/dim]")
+                lines.append(f"[dim]{c.phone}[/]")
 
         contacts_body = Text.from_markup("\n".join(lines))
         cards.append(
@@ -149,3 +151,37 @@ def print_application(app: schemas.Application) -> None:
         )
 
     console.print(Columns(cards, expand=True))
+
+
+def print_companies(companies: list[schemas.Company], format: OutputFormat):
+    if format == OutputFormat.JSON:
+        output = [asdict(company) for company in companies]
+        console.print(
+            json.dumps(
+                output,
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if format == OutputFormat.TABLE:
+        table = Table(box=None, header_style="bold")
+        table.add_column("ID", style="dim")
+        table.add_column("Name")
+        table.add_column("Industry")
+        table.add_column("URL")
+
+        for company in companies:
+            table.add_row(
+                str(company.id),
+                company.name,
+                company.industry,
+                company.url,
+            )
+        console.print(table)
+    else:
+        for company in companies:
+            console.print(
+                f"[bold]{company.id}[/] {company.name} [italic]{company.industry}[italic] [link]{company.url}[/]"
+            )

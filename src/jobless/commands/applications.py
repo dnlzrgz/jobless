@@ -149,6 +149,8 @@ def create(
         app_repo.add(application)
         session.commit()
 
+        typer.echo("Application added")
+
 
 @cli.command("view")
 def view(
@@ -285,7 +287,7 @@ def update(
     """
     Update an existing job application.
 
-    Only the fields provided will be changed. To clear an optional field,
+    Only the fields provided will be changed. To clear an optional field
     pass an empty string.
 
     Examples:
@@ -300,7 +302,7 @@ def update(
 
         existing_app = app_repo.get(id)
         if not existing_app:
-            typer.echo(f"application '{id}' not found!", err=True)
+            typer.echo(f"application {id} not found", err=True)
             raise typer.Exit(1)
 
         target_company = existing_app.company
@@ -336,6 +338,7 @@ def update(
 
         app_repo.update(updated_app)
         session.commit()
+
         typer.echo(f"Updated application {id}")
 
 
@@ -437,7 +440,6 @@ def get_all(
         int | None,
         typer.Option(
             "--limit",
-            "-n",
             min=1,
             help="limit the number of results",
         ),
@@ -453,7 +455,7 @@ def get_all(
     """
 
     context: AppContext = ctx.obj
-    filter = schemas.ApplicationFilter(
+    f = schemas.ApplicationFilter(
         title=title,
         statuses=statuses or [],
         location_types=locations or [],
@@ -470,7 +472,7 @@ def get_all(
     )
     with context.get_session() as session:
         app_repo = ApplicationRepository(session, context.mapper)
-        applications = app_repo.filter(filter)
+        applications = app_repo.filter(f)
 
         if not applications:
             console.print("No applications found")
