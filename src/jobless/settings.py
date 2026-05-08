@@ -11,10 +11,6 @@ from jobless.constants import APP_DIR, CONFIG_FILE_PATH, DB_URL
 
 @dataclass(frozen=True, slots=True)
 class Settings:
-    theme: str = field(
-        default="tokyo-night",
-        metadata={"env": "JOBLESS_THEME"},
-    )
     db_url: str = field(
         default=f"sqlite:///{DB_URL}",
         metadata={"env": "JOBLESS_DB_URL"},

@@ -114,6 +114,7 @@ def seed_data():
                     )
                     for _ in range(randint(2, 3))
                 ],
+                notes=fake.paragraph(),
             )
             applications.append(application)
 

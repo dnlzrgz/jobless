@@ -1,10 +1,16 @@
+import webbrowser
 from datetime import datetime
 from typing import Annotated
 
 import typer
 
 from jobless import schemas
-from jobless.commands.utils import console, print_applications, resolve_field
+from jobless.commands.utils import (
+    console,
+    print_application,
+    print_applications,
+    resolve_field,
+)
 from jobless.context import AppContext
 from jobless.enums import (
     ApplicationSortField,
@@ -142,6 +148,49 @@ def create(
 
         app_repo.add(application)
         session.commit()
+
+
+@cli.command("view")
+def view(
+    ctx: typer.Context,
+    app_id: Annotated[
+        int,
+        typer.Argument(help="application id"),
+    ],
+    web: Annotated[
+        bool | None,
+        typer.Option(
+            "-w",
+            "--web",
+            help="open the job posting URL if any.",
+        ),
+    ] = None,
+):
+    """
+    Show details for a job application.
+
+    Examples:
+      $ jobless app view 3
+      $ jobless app view 3 --web
+    """
+
+    context: AppContext = ctx.obj
+    with context.get_session() as session:
+        app_repo = ApplicationRepository(session, context.mapper)
+        app = app_repo.get(app_id)
+        if not app:
+            typer.echo(f"application {id} not found.", err=True)
+            raise typer.Exit(1)
+
+        if web:
+            if not app.url:
+                typer.echo(f"application {id} has no URL ", err=True)
+                typer.Exit(1)
+            else:
+                webbrowser.open(app.url)
+                return
+
+        print_application(app)
 
 
 @cli.command("update")
