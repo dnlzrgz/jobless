@@ -66,3 +66,17 @@ class Application:
     def __post_init__(self):
         if not self.title.strip():
             raise ValueError("application title cannot be empty")
+
+
+@dataclass(slots=True, kw_only=True)
+class ApplicationFilter:
+    title: str | None = None
+    statuses: list[Status] = field(default_factory=list)
+    location_types: list[Location] = field(default_factory=list)
+    skills: list[str] = field(default_factory=list)
+    company_name: str | None = None
+    company_id: int | None = None
+    applied_after: date | None = None
+    applied_before: date | None = None
+    follow_up_date_after: date | None = None
+    follow_up_date_before: date | None = None

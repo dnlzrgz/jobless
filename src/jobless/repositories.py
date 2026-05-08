@@ -1,5 +1,5 @@
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, contains_eager, joinedload, selectinload
 
 from jobless import models, schemas
 from jobless.mapper import Mapper
@@ -55,19 +55,61 @@ class ApplicationRepository:
         instance = self._get(id)
         return self._mapper.application_model_to_schema(instance) if instance else None
 
+    def filter(self, f: schemas.ApplicationFilter) -> list[schemas.Application]:
+        stmt = select(models.Application).options(
+            joinedload(models.Application.company),
+            selectinload(models.Application.skills),
+            selectinload(models.Application.contacts),
+        )
+
+        if f.title:
+            stmt = stmt.where(models.Application.title.ilike(f"%{f.title}%"))
+
+        if f.statuses:
+            stmt = stmt.where(models.Application.status.in_(f.statuses))
+
+        if f.location_types:
+            stmt = stmt.where(models.Application.location_type.in_(f.location_types))
+
+        if f.company_id:
+            stmt = stmt.where(models.Application.company_id == f.company_id)
+        elif f.company_name:
+            stmt = (
+                stmt.join(models.Application.company)
+                .where(models.Company.name.ilike(f.company_name))
+                .options(contains_eager(models.Application.company))
+            )
+
+        if f.applied_after:
+            stmt = stmt.where(models.Application.date_applied >= f.applied_after)
+
+        if f.applied_before:
+            stmt = stmt.where(models.Application.date_applied <= f.applied_before)
+
+        if f.follow_up_date_after:
+            stmt = stmt.where(
+                models.Application.follow_up_date >= f.follow_up_date_after
+            )
+
+        if f.follow_up_date_before:
+            stmt = stmt.where(
+                models.Application.follow_up_date <= f.follow_up_date_before
+            )
+
+        if f.skills:
+            stmt = stmt.where(
+                models.Application.skills.any(models.Skill.name.in_(f.skills))
+            )
+
+        stmt = stmt.order_by(models.Application.date_applied.desc())
+        instances = self._session.scalars(stmt).unique().all()
+        return [self._mapper.application_model_to_schema(i) for i in instances]
+
     def list(self) -> list[schemas.Application]:
-        instances = self._session.scalars(select(models.Application)).all()
-        return [
-            self._mapper.application_model_to_schema(instance) for instance in instances
-        ]
+        return self.filter(schemas.ApplicationFilter())
 
     def list_by_company(self, company_id: int) -> list[schemas.Application]:
-        instances = self._session.scalars(
-            select(models.Application).where(
-                models.Application.company_id == company_id
-            )
-        ).all()
-        return [self._mapper.application_model_to_schema(i) for i in instances]
+        return self.filter(schemas.ApplicationFilter(company_id=company_id))
 
     def update(self, schema: schemas.Application) -> schemas.Application | None:
         assert schema.id

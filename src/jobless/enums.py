@@ -2,18 +2,18 @@ from enum import StrEnum
 
 
 class Status(StrEnum):
-    SAVED = "Saved"
-    APPLIED = "Applied"
-    INTERVIEWING = "Interviewing"
-    OFFER = "Offer"
-    ACCEPTED = "Accepted"
-    REJECTED = "Rejected"
-    GHOSTED = "Ghosted"
-    CLOSED = "Closed"
-    WITHDRAWN = "Withdrawn"
+    SAVED = "saved"
+    APPLIED = "applied"
+    INTERVIEWING = "interviewing"
+    OFFER = "offer"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    GHOSTED = "ghosted"
+    CLOSED = "closed"
+    WITHDRAWN = "withdrawn"
 
 
 class Location(StrEnum):
-    REMOTE = "Remote"
-    HYBRID = "Hybrid"
-    ON_SITE = "On-site"
+    REMOTE = "remote"
+    HYBRID = "hybrid"
+    ON_SITE = "on-site"
