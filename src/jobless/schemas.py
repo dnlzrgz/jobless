@@ -88,3 +88,5 @@ class ApplicationFilter:
 
     sort_by: ApplicationSortField = ApplicationSortField.DATE_APPLIED
     sort_order: SortOrder = SortOrder.DESC
+
+    limit: int | None = None

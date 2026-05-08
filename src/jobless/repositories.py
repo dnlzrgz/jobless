@@ -126,6 +126,9 @@ class ApplicationRepository:
         else:
             stmt = stmt.order_by(sort_col.asc())
 
+        if f.limit is not None:
+            stmt = stmt.limit(f.limit)
+
         instances = self._session.scalars(stmt).unique().all()
         return [self._mapper.application_model_to_schema(i) for i in instances]
 

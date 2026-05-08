@@ -4,9 +4,15 @@ from typing import Annotated
 import typer
 
 from jobless import schemas
-from jobless.commands.utils import resolve_field
+from jobless.commands.utils import console, print_applications, resolve_field
 from jobless.context import AppContext
-from jobless.enums import ApplicationSortField, Location, SortOrder, Status
+from jobless.enums import (
+    ApplicationSortField,
+    Location,
+    OutputFormat,
+    SortOrder,
+    Status,
+)
 from jobless.repositories import (
     ApplicationRepository,
     CompanyRepository,
@@ -363,7 +369,7 @@ def get_all(
             "--sort-by",
             help="property to sort by",
         ),
-    ] = ApplicationSortField.DATE_APPLIED,
+    ] = ApplicationSortField.CREATED,
     sort_order: Annotated[
         SortOrder,
         typer.Option(
@@ -371,6 +377,22 @@ def get_all(
             help="sort order",
         ),
     ] = SortOrder.DESC,
+    format: Annotated[
+        OutputFormat,
+        typer.Option(
+            "--format",
+            help="output format",
+        ),
+    ] = OutputFormat.TABLE,
+    limit: Annotated[
+        int | None,
+        typer.Option(
+            "--limit",
+            "-n",
+            min=1,
+            help="limit the number of results",
+        ),
+    ] = None,
 ):
     """
     List job applications with optional filters.
@@ -395,17 +417,17 @@ def get_all(
         follow_up_date_before=follow_up_before.date() if follow_up_before else None,
         sort_by=sort_by,
         sort_order=sort_order,
+        limit=limit,
     )
     with context.get_session() as session:
         app_repo = ApplicationRepository(session, context.mapper)
         applications = app_repo.filter(filter)
 
         if not applications:
-            typer.echo("No applications found")
+            console.print("No applications found")
             return
 
-        for app in applications:
-            typer.echo(f"{app.id}\t{app.title} @ {app.company.name}\t[{app.status}]")
+        print_applications(applications, format)
 
 
 @cli.command("del")

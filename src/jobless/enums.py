@@ -19,6 +19,12 @@ class Location(StrEnum):
     ON_SITE = "on-site"
 
 
+class OutputFormat(StrEnum):
+    TABLE = "table"
+    LIST = "list"
+    JSON = "json"
+
+
 class SortOrder(StrEnum):
     ASC = "asc"
     DESC = "desc"
