@@ -22,6 +22,7 @@ from jobless.enums import (
 from jobless.repositories import (
     ApplicationRepository,
     CompanyRepository,
+    ContactRepository,
     SkillRepository,
 )
 
@@ -112,6 +113,13 @@ def create(
             help="add a skill; repeat to add multiple",
         ),
     ] = None,
+    contacts: Annotated[
+        list[int] | None,
+        typer.Option(
+            "--contact",
+            help="link a contact by ID; repeat to link multiple",
+        ),
+    ] = None,
 ):
     """
     Add a new job application.
@@ -119,6 +127,7 @@ def create(
     Examples:
       $ jobless app add --title "Backend Engineer" --company Acme
       $ jobless app add -t "SRE" -c Initech --status applied --skill Python --skill Go
+      $ jobless app add -t "PM" -c Acme --contact 3 --contact 7
     """
 
     context: AppContext = ctx.obj
@@ -126,11 +135,23 @@ def create(
         app_repo = ApplicationRepository(session, context.mapper)
         company_repo = CompanyRepository(session, context.mapper)
         skill_repo = SkillRepository(session, context.mapper)
+        contact_repo = ContactRepository(session, context.mapper)
 
         target_company = company_repo.get_or_create(company)
+
         skill_schemas = []
         if skills:
             skill_schemas = [skill_repo.get_or_create(s) for s in skills]
+
+        contact_schemas = []
+        if contacts:
+            for contact_id in contacts:
+                contact = contact_repo.get(contact_id)
+                if not contact:
+                    typer.echo(f"contact {contact_id} not found, skipping", err=True)
+                    continue
+
+                contact_schemas.append(contact)
 
         application = schemas.Application(
             title=title,
@@ -143,7 +164,7 @@ def create(
             date_applied=date_applied,
             notes=notes,
             skills=skill_schemas,
-            contacts=[],  # TODO:
+            contacts=contact_schemas,
         )
 
         app_repo.add(application)
@@ -157,7 +178,7 @@ def view(
     ctx: typer.Context,
     app_id: Annotated[
         int,
-        typer.Argument(help="application id"),
+        typer.Argument(help="application ID"),
     ],
     web: Annotated[
         bool | None,
@@ -187,7 +208,7 @@ def view(
         if web:
             if not app.url:
                 typer.echo(f"application {id} has no URL ", err=True)
-                typer.Exit(1)
+                raise typer.Exit(1)
             else:
                 webbrowser.open(app.url)
                 return
@@ -283,6 +304,20 @@ def update(
             help="replace all skills; use '' to clear",
         ),
     ] = None,
+    add_contacts: Annotated[
+        list[int] | None,
+        typer.Option(
+            "--add-contact",
+            help="link a contact by ID; repeat to link multiple",
+        ),
+    ] = None,
+    remove_contacts: Annotated[
+        list[int] | None,
+        typer.Option(
+            "--remove-contact",
+            help="unlink a contact by ID; repeat to unlink multiple",
+        ),
+    ] = None,
 ):
     """
     Update an existing job application.
@@ -294,6 +329,8 @@ def update(
       $ jobless app update 3 --status interviewing
       $ jobless app update 3 --skill Python --skill Rust
       $ jobless app update 3 --notes ''
+      $ jobless app update 3 --add-contact 5
+      $ jobless app update 3 --remove-contact 2 --add-contact 9
     """
 
     context: AppContext = ctx.obj
@@ -318,6 +355,29 @@ def update(
                 skill_repo = SkillRepository(session, context.mapper)
                 target_skills = [skill_repo.get_or_create(s) for s in skills]
 
+        target_contacts = list(existing_app.contacts)
+        if add_contacts or remove_contacts:
+            contact_repo = ContactRepository(session, context.mapper)
+
+            if remove_contacts:
+                remove_ids = set(remove_contacts)
+                target_contacts = [c for c in target_contacts if c.id not in remove_ids]
+
+            if add_contacts:
+                existing_ids = {c.id for c in target_contacts}
+                for contact_id in add_contacts:
+                    if contact_id in existing_ids:
+                        continue
+
+                    contact = contact_repo.get(contact_id)
+                    if not contact:
+                        typer.echo(
+                            f"contact {contact_id} not found, skipping", err=True
+                        )
+                        continue
+
+                    target_contacts.append(contact)
+
         updated_app = schemas.Application(
             id=existing_app.id,
             title=title if title is not None else existing_app.title,
@@ -333,13 +393,13 @@ def update(
             follow_up_date=resolve_field(follow_up_date, existing_app.follow_up_date),
             notes=resolve_field(notes, existing_app.notes),
             skills=target_skills,
-            contacts=existing_app.contacts,
+            contacts=target_contacts,
         )
 
         app_repo.update(updated_app)
         session.commit()
 
-        typer.echo(f"Updated application {id}")
+        typer.echo("Application updated")
 
 
 @cli.command("list")
@@ -453,6 +513,8 @@ def get_all(
       $ jobless app list --location-type remote --skill python
       $ jobless app list --applied-after 2024-01-01
     """
+
+    # TODO: add option to filter by contact::{name, url, email, etc.}
 
     context: AppContext = ctx.obj
     f = schemas.ApplicationFilter(

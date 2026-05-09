@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 
 from jobless.commands import applications, companies, contacts, skills
 from jobless.context import AppContext
-from jobless.db import get_engine
+from jobless.db import get_engine, init_db
 from jobless.mapper import Mapper
 from jobless.settings import load_settings
 
@@ -18,6 +18,7 @@ cli = typer.Typer(
 def main(ctx: typer.Context):
     settings = load_settings()
     engine = get_engine(settings.db_url)
+    init_db(engine)
 
     ctx.obj = AppContext(
         session_factory=sessionmaker(

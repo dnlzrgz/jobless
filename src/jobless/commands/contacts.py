@@ -24,7 +24,7 @@ def create(
             "-n",
             "--name",
             prompt=True,
-            help="contact's full name",
+            help="contact name",
         ),
     ],
     email: Annotated[
@@ -32,7 +32,7 @@ def create(
         typer.Option(
             "-e",
             "--email",
-            help="email address",
+            help="contact email",
         ),
     ] = None,
     phone: Annotated[
@@ -40,7 +40,7 @@ def create(
         typer.Option(
             "-p",
             "--phone",
-            help="phone number",
+            help="contact phone number",
         ),
     ] = None,
     url: Annotated[
@@ -48,7 +48,7 @@ def create(
         typer.Option(
             "-u",
             "--url",
-            help="LinkedIn or profile URL",
+            help="contact URL",
         ),
     ] = None,
 ):
@@ -73,7 +73,8 @@ def create(
 
         contact_repo.add(contact)
         session.commit()
-        typer.echo(f"Added contact '{name}'")
+
+        typer.echo("Contact added")
 
 
 @cli.command("update")
@@ -88,7 +89,7 @@ def update(
         typer.Option(
             "-n",
             "--name",
-            help="contact's full name",
+            help="new contact name",
         ),
     ] = None,
     email: Annotated[
@@ -96,7 +97,7 @@ def update(
         typer.Option(
             "-e",
             "--email",
-            help="email address; pass '' to clear",
+            help="new contact email; use '' to clear",
         ),
     ] = None,
     phone: Annotated[
@@ -104,7 +105,7 @@ def update(
         typer.Option(
             "-p",
             "--phone",
-            help="phone number; pass '' to clear",
+            help="new contact phone; use '' to clear",
         ),
     ] = None,
     url: Annotated[
@@ -112,7 +113,7 @@ def update(
         typer.Option(
             "-u",
             "--url",
-            help="LinkedIn or profile URL; pass '' to clear",
+            help="new contact url; use '' to clear",
         ),
     ] = None,
 ):
@@ -146,13 +147,14 @@ def update(
 
         contact_repo.update(updated)
         session.commit()
-        typer.echo(f"Updated contact {id}")
+
+        typer.echo("Contact updated")
 
 
 @cli.command("list")
 def get_all(ctx: typer.Context):
     """
-    List all contacts.
+    List contacts with optional filters.
     """
 
     context: AppContext = ctx.obj
@@ -174,7 +176,7 @@ def delete(
     ctx: typer.Context,
     contact_ids: Annotated[
         list[int],
-        typer.Argument(help="contact ID(s) to delete"),
+        typer.Argument(help="ID(s) of contacts to delete"),
     ],
 ):
     """

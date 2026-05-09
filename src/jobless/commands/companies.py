@@ -101,7 +101,7 @@ def view(
         if web:
             if not company.url:
                 typer.echo(f"company {id} has no URL ", err=True)
-                typer.Exit(1)
+                raise typer.Exit(1)
             else:
                 webbrowser.open(company.url)
                 return
