@@ -1,9 +1,10 @@
+import webbrowser
 from typing import Annotated
 
 import typer
 
 from jobless import schemas
-from jobless.commands.utils import print_companies, resolve_field
+from jobless.commands.utils import print_companies, print_company, resolve_field
 from jobless.context import AppContext
 from jobless.enums import CompanySortField, OutputFormat, SortOrder
 from jobless.repositories import ApplicationRepository, CompanyRepository
@@ -63,6 +64,49 @@ def create(
         session.commit()
 
         typer.echo("Company added")
+
+
+@cli.command("view")
+def view(
+    ctx: typer.Context,
+    company_id: Annotated[
+        int,
+        typer.Argument(help="company id"),
+    ],
+    web: Annotated[
+        bool | None,
+        typer.Option(
+            "-w",
+            "--web",
+            help="open the company website if any.",
+        ),
+    ] = None,
+):
+    """
+    Show company details.
+
+    Examples:
+      $ jobless company view 3
+      $ jobless company view 3 --web
+    """
+
+    context: AppContext = ctx.obj
+    with context.get_session() as session:
+        company_repo = CompanyRepository(session, context.mapper)
+        company = company_repo.get(company_id)
+        if not company:
+            typer.echo(f"company {id} not found.", err=True)
+            raise typer.Exit(1)
+
+        if web:
+            if not company.url:
+                typer.echo(f"company {id} has no URL ", err=True)
+                typer.Exit(1)
+            else:
+                webbrowser.open(company.url)
+                return
+
+        print_company(company)
 
 
 @cli.command("update")
@@ -204,6 +248,11 @@ def get_all(
 ):
     """
     List all companies with optional filters.
+
+    Examples:
+        $ jobless companies list
+        $ jobless companies list --industry 'fintech' --sort-by name
+        $ jobless companies list --min-applications 2 --order asc
     """
 
     context: AppContext = ctx.obj

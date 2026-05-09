@@ -37,6 +37,14 @@ def date_serializer(obj):
     raise TypeError(f"type {type(obj)} is not serializable")
 
 
+def _fmt_date(d: date | None) -> str:
+    return d.strftime("%Y-%m-%d") if d else "-"
+
+
+def _or_dash(value: str | None) -> str:
+    return value or "-"
+
+
 def print_applications(apps: list[schemas.Application], format: OutputFormat):
     if format == OutputFormat.JSON:
         output = [asdict(app) for app in apps]
@@ -55,7 +63,6 @@ def print_applications(apps: list[schemas.Application], format: OutputFormat):
         table.add_column("ID", style="dim")
         table.add_column("Title")
         table.add_column("Company")
-        table.add_column("URL")
         table.add_column("Status")
         table.add_column("Applied", justify="right")
         table.add_column("Follow Up", justify="right")
@@ -65,47 +72,46 @@ def print_applications(apps: list[schemas.Application], format: OutputFormat):
                 str(app.id),
                 app.title,
                 app.company.name,
-                app.url,
                 app.status.value,
-                app.date_applied.strftime("%Y-%m-%d") if app.date_applied else "-",
-                app.follow_up_date.strftime("%Y-%m-%d") if app.follow_up_date else "-",
+                _fmt_date(app.date_applied),
+                _fmt_date(app.follow_up_date),
             )
         console.print(table)
     else:
         for app in apps:
             console.print(
-                f"[bold]{app.id}[/]  {app.title} @ {app.company.name} [dim]({app.status.value})[/]"
+                f"[bold]{app.id}[/] {app.title} @ {app.company.name} [dim]({app.status.value})[/]"
             )
 
 
 def print_application(app: schemas.Application) -> None:
-    meta = Text()
-
     tags = [f"[bold]{app.status.value}[/]", app.location_type.value]
     if app.salary:
         tags.append(app.salary)
-    meta.append_text(Text.from_markup(" · ".join(tags)))
+
+    meta = Text.from_markup(" · ".join(tags))
 
     dates = []
     if app.date_applied:
-        dates.append(f"applied {app.date_applied.strftime('%Y-%m-%d')}")
+        dates.append(f"applied {_fmt_date(app.date_applied)}")
 
     if app.follow_up_date:
-        dates.append(f"follow-up {app.follow_up_date.strftime('%Y-%m-%d')}")
+        dates.append(f"follow-up {_fmt_date(app.follow_up_date)}")
 
     if dates:
         meta.append("\n" + " · ".join(dates))
 
     if app.skills:
-        skills = ", ".join(f"#{s.name}" for s in app.skills)
-        meta.append(f"\n{skills}", style="italic")
-
+        meta.append(
+            "\n" + ", ".join(f"#{s.name}" for s in app.skills),
+            style="italic",
+        )
     if app.url:
         meta.append(f"\n{app.url}")
 
     title = Text.assemble(
         (app.title, "bold"),
-        (" @ "),
+        " @ ",
         (app.company.name, "bold"),
     )
     console.print(
@@ -113,41 +119,68 @@ def print_application(app: schemas.Application) -> None:
             meta,
             title=title,
             title_align="left",
-            padding=(1),
-        )
+            padding=1,
+        ),
     )
 
     if app.description:
         console.print(
-            Panel(app.description, title="Description", title_align="left", padding=(1))
+            Panel(
+                app.description,
+                title="Description",
+                title_align="left",
+                padding=1,
+            )
         )
 
     if app.notes:
-        console.print(Panel(app.notes, title="Notes", title_align="left", padding=(1)))
+        console.print(
+            Panel(
+                app.notes,
+                title="Notes",
+                title_align="left",
+                padding=1,
+            ),
+        )
 
     cards = []
 
-    company_lines = [(app.company.name, "bold")]
+    company_parts = [(app.company.name, "bold")]
     if app.company.industry:
-        company_lines.append((f"\n{app.company.industry}", ""))
+        company_parts.append((f"\n{app.company.industry}", ""))
     if app.company.url:
-        company_lines.append((f"\n\n{app.company.url}", ""))
+        company_parts.append((f"\n{app.company.url}", "dim"))
 
-    company_body = Text.assemble(*company_lines)
-    cards.append(Panel(company_body, title="Company", title_align="left", padding=(1)))
+    cards.append(
+        Panel(
+            Text.assemble(*company_parts),
+            title="Company",
+            title_align="left",
+            padding=1,
+        )
+    )
 
     if app.contacts:
-        lines = []
-        for c in app.contacts:
-            lines.append(f"[bold]{c.name}[/]")
-            if c.email:
-                lines.append(f"[dim]{c.email}[/]")
-            if c.phone:
-                lines.append(f"[dim]{c.phone}[/]")
+        contact_text = Text()
+        for i, c in enumerate(app.contacts):
+            if i:
+                contact_text.append("\n\n")
 
-        contacts_body = Text.from_markup("\n".join(lines))
+            contact_text.append(c.name, style="bold")
+            if c.url:
+                contact_text.append(f"\n{c.url}", style="dim")
+            if c.email:
+                contact_text.append(f"\n{c.email}", style="dim")
+            if c.phone:
+                contact_text.append(f"\n{c.phone}", style="dim")
+
         cards.append(
-            Panel(contacts_body, title="Contacts", title_align="left", padding=(1))
+            Panel(
+                contact_text,
+                title="Contacts",
+                title_align="left",
+                padding=1,
+            )
         )
 
     console.print(Columns(cards, expand=True))
@@ -176,12 +209,30 @@ def print_companies(companies: list[schemas.Company], format: OutputFormat):
             table.add_row(
                 str(company.id),
                 company.name,
-                company.industry,
-                company.url,
+                _or_dash(company.industry),
+                _or_dash(company.url),
             )
         console.print(table)
     else:
         for company in companies:
-            console.print(
-                f"[bold]{company.id}[/] {company.name} [italic]{company.industry}[italic] [link]{company.url}[/]"
+            line = Text.assemble(
+                (f"{company.id}", "bold"),
+                f" {company.name}",
+                (f" {_or_dash(company.industry)}", "italic"),
+                f" {_or_dash(company.url)}",
             )
+            console.print(line)
+
+
+def print_company(company: schemas.Company) -> None:
+    body_parts: list = [(_or_dash(company.industry), "")]
+    body_parts.append("\n")
+    body_parts.append((_or_dash(company.url), "link" if company.url else ""))
+    console.print(
+        Panel(
+            Text.assemble(*body_parts),
+            title=Text(company.name, style="bold"),
+            title_align="left",
+            padding=1,
+        )
+    )
