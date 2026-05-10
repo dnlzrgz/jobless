@@ -335,7 +335,7 @@ class ContactRepository:
             stmt = stmt.where(models.Contact.url.ilike(f"%{f.url}%"))
 
         if f.email:
-            stmt = stmt.where(models.Contact.url.ilike(f"%{f.email}%"))
+            stmt = stmt.where(models.Contact.email.ilike(f"%{f.email}%"))
 
         having_clauses = []
         if f.min_applications is not None:

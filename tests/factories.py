@@ -1,94 +1,64 @@
-from faker import Faker
+import factory
+from factory.alchemy import SQLAlchemyModelFactory
 
-from jobless import models, schemas
+from jobless import models
 from jobless.enums import Location, Status
 
-fake = Faker()
+
+class SkillFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = models.Skill
+        sqlalchemy_session = None
+        sqlalchemy_session_persistence = "flush"
+
+    name = factory.Sequence(lambda n: f"skill-{n}")
 
 
-def make_skill_model() -> models.Skill:
-    return models.Skill(
-        id=fake.unique.random_int(),
-        name=fake.unique.word(),
+class CompanyFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = models.Company
+        sqlalchemy_session = None
+        sqlalchemy_session_persistence = "flush"
+
+    name = factory.Sequence(lambda n: f"Company {n}")
+    url = factory.Sequence(lambda n: f"https://company-{n}.example.com")
+    industry = factory.Faker("bs")
+
+
+class ContactFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = models.Contact
+        sqlalchemy_session = None
+        sqlalchemy_session_persistence = "flush"
+
+    name = factory.Faker("name")
+    email = factory.Sequence(lambda n: f"contact{n}@example.com")
+    phone = factory.Sequence(lambda n: f"+1555{n:07d}")
+    url = factory.Sequence(lambda n: f"https://contact-{n}.example.com")
+
+
+class ApplicationFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = models.Application
+        sqlalchemy_session = None
+        sqlalchemy_session_persistence = "flush"
+
+    title = factory.Faker("job")
+    description = factory.Faker("text")
+    salary = factory.LazyAttribute(
+        lambda _: f"${factory.Faker('random_int', min=50, max=200)}k"
     )
+    url = factory.Sequence(lambda n: f"https://{n}.example.com")
+    location_type = Location.ON_SITE
+    status = Status.SAVED
+    company = factory.SubFactory(CompanyFactory)
 
+    @factory.post_generation
+    def skills(self, create, extracted, **kwargs):
+        if extracted:
+            self.skills = list(extracted)
 
-def make_contact_model() -> models.Contact:
-    return models.Contact(
-        id=fake.unique.random_int(),
-        name=fake.unique.name(),
-        email=fake.unique.email(),
-        phone=fake.unique.phone_number(),
-        url=fake.unique.url(),
-    )
-
-
-def make_company_model() -> models.Company:
-    return models.Company(
-        id=fake.unique.random_int(),
-        name=fake.unique.company(),
-        url=fake.unique.url(),
-        industry=fake.job(),
-    )
-
-
-def make_application_model() -> models.Application:
-    return models.Application(
-        id=fake.unique.random_int(),
-        title=fake.job(),
-        description=fake.paragraph(),
-        salary=f"${fake.random_int(50, 200)}k",
-        url=fake.unique.url(),
-        location_type=fake.random_element(elements=list(Location)),
-        status=fake.random_element(elements=list(Status)),
-        date_applied=fake.date_between(start_date="-30d", end_date="today"),
-        follow_up_date=fake.date_between(start_date="today", end_date="+14d"),
-        notes=fake.sentence(),
-        company=make_company_model(),
-        skills=[make_skill_model() for _ in range(fake.random_int(0, 5))],
-        contacts=[make_contact_model() for _ in range(fake.random_int(1, 3))],
-    )
-
-
-def make_skill_schema() -> schemas.Skill:
-    return schemas.Skill(
-        id=fake.unique.random_int(),
-        name=fake.unique.word(),
-    )
-
-
-def make_contact_schema() -> schemas.Contact:
-    return schemas.Contact(
-        id=fake.unique.random_int(),
-        name=fake.unique.name(),
-        email=fake.unique.email(),
-        phone=fake.unique.phone_number(),
-        url=fake.unique.url(),
-    )
-
-
-def make_company_schema() -> schemas.Company:
-    return schemas.Company(
-        id=fake.unique.random_int(),
-        name=fake.unique.company(),
-        url=fake.unique.url(),
-        industry=fake.job(),
-    )
-
-
-def make_application_schema() -> schemas.Application:
-    return schemas.Application(
-        id=fake.unique.random_int(),
-        title=fake.job(),
-        description=fake.paragraph(),
-        salary=f"${fake.random_int(50, 200)}k",
-        url=fake.unique.url(),
-        location_type=fake.random_element(elements=list(Location)),
-        status=fake.random_element(elements=list(Status)),
-        date_applied=fake.date_between(start_date="-30d", end_date="today"),
-        follow_up_date=fake.date_between(start_date="today", end_date="+14d"),
-        notes=fake.sentence(),
-        company=make_company_schema(),
-        skills=[make_skill_schema() for _ in range(fake.random_int(0, 5))],
-        contacts=[make_contact_schema() for _ in range(fake.random_int(1, 3))],
-    )
+    @factory.post_generation
+    def contacts(self, create, extracted, **kwargs):
+        if extracted:
+            self.contacts = list(extracted)
