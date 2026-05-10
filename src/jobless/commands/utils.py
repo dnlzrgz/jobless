@@ -79,9 +79,15 @@ def print_applications(apps: list[schemas.Application], format: OutputFormat):
         console.print(table)
     else:
         for app in apps:
-            console.print(
-                f"[bold]{app.id}[/] {app.title} @ {app.company.name} [dim]({app.status.value})[/]"
+            line = Text.assemble(
+                (f"{app.id},", "bold"),
+                f" '{app.title}',",
+                f" '{app.company.name}',",
+                f" {app.status.value.capitalize()},",
+                f" {_fmt_date(app.date_applied)},",
+                f" {_fmt_date(app.follow_up_date)}",
             )
+            console.print(line)
 
 
 def print_application(app: schemas.Application) -> None:
@@ -216,9 +222,9 @@ def print_companies(companies: list[schemas.Company], format: OutputFormat):
     else:
         for company in companies:
             line = Text.assemble(
-                (f"{company.id}", "bold"),
-                f" {company.name}",
-                (f" {_or_dash(company.industry)}", "italic"),
+                (f"{company.id},", "bold"),
+                f" {company.name},",
+                f" {_or_dash(company.industry)},",
                 f" {_or_dash(company.url)}",
             )
             console.print(line)
@@ -236,3 +242,44 @@ def print_company(company: schemas.Company) -> None:
             padding=1,
         )
     )
+
+
+def print_contacts(contacts: list[schemas.Contact], format: OutputFormat):
+    if format == OutputFormat.JSON:
+        output = [asdict(contact) for contact in contacts]
+        console.print(
+            json.dumps(
+                output,
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if format == OutputFormat.TABLE:
+        table = Table(box=None, header_style="bold")
+        table.add_column("ID", style="dim")
+        table.add_column("Name")
+        table.add_column("Email")
+        table.add_column("Phone")
+        table.add_column("URL")
+
+        for contact in contacts:
+            table.add_row(
+                str(contact.id),
+                contact.name,
+                _or_dash(contact.phone),
+                _or_dash(contact.email),
+                _or_dash(contact.url),
+            )
+        console.print(table)
+    else:
+        for contact in contacts:
+            line = Text.assemble(
+                (f"{contact.id},", "bold"),
+                f" {contact.name},",
+                f" {_or_dash(contact.phone)},",
+                f" {_or_dash(contact.email)},",
+                f" {_or_dash(contact.url)}",
+            )
+            console.print(line)

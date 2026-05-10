@@ -3,8 +3,9 @@ from typing import Annotated
 import typer
 
 from jobless import schemas
-from jobless.commands.utils import resolve_field
+from jobless.commands.utils import print_contacts, resolve_field
 from jobless.context import AppContext
+from jobless.enums import ContactSortField, OutputFormat, SortOrder
 from jobless.repositories import ContactRepository
 
 cli = typer.Typer(
@@ -152,23 +153,105 @@ def update(
 
 
 @cli.command("list")
-def get_all(ctx: typer.Context):
+def get_all(
+    ctx: typer.Context,
+    name: Annotated[
+        str | None,
+        typer.Option(
+            "-n",
+            "--name",
+            help="filter by name",
+        ),
+    ] = None,
+    url: Annotated[
+        str | None,
+        typer.Option(
+            "-u",
+            "--url",
+            help="filter by url",
+        ),
+    ] = None,
+    email: Annotated[
+        str | None,
+        typer.Option(
+            "-e",
+            "--email",
+            help="filter by email",
+        ),
+    ] = None,
+    min_applications: Annotated[
+        int | None,
+        typer.Option(
+            "--min-applications",
+            min=0,
+            help="filter contacts with at least this many applications",
+        ),
+    ] = None,
+    max_applications: Annotated[
+        int | None,
+        typer.Option(
+            "--max-applications",
+            min=0,
+            help="filter contacts with at most this many applications",
+        ),
+    ] = None,
+    sort_by: Annotated[
+        ContactSortField,
+        typer.Option(
+            "--sort-by",
+            help="property to sort by",
+        ),
+    ] = ContactSortField.CREATED,
+    sort_order: Annotated[
+        SortOrder,
+        typer.Option(
+            "--order",
+            help="sort order",
+        ),
+    ] = SortOrder.DESC,
+    format: Annotated[
+        OutputFormat,
+        typer.Option(
+            "--format",
+            help="output format",
+        ),
+    ] = OutputFormat.TABLE,
+    limit: Annotated[
+        int | None,
+        typer.Option(
+            "--limit",
+            min=1,
+            help="limit the number of results",
+        ),
+    ] = None,
+):
     """
     List contacts with optional filters.
     """
 
+    # TODO: add option to filter by application::{title, id, etc.}
+
     context: AppContext = ctx.obj
+    f = schemas.ContactFilter(
+        name=name,
+        url=url,
+        email=email,
+        min_applications=min_applications,
+        max_applications=max_applications,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        limit=limit,
+    )
+
     with context.get_session() as session:
         contact_repo = ContactRepository(session, context.mapper)
-        contacts = contact_repo.list()
+        contacts = contact_repo.filter(f)
 
         if not contacts:
-            typer.echo("No contacts found")
-            return
+            typer.echo("No contacts found", err=True)
+            raise typer.Exit(1)
 
-        for contact in contacts:
-            meta = "\t".join(filter(None, [contact.email, contact.phone, contact.url]))
-            typer.echo(f"{contact.id}\t{contact.name}\t{meta}")
+        print_contacts(contacts, format)
 
 
 @cli.command("del")

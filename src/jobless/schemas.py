@@ -6,6 +6,7 @@ from email_validator import EmailNotValidError, validate_email
 from jobless.enums import (
     ApplicationSortField,
     CompanySortField,
+    ContactSortField,
     Location,
     SortOrder,
     Status,
@@ -102,6 +103,21 @@ class CompanyFilter:
     max_applications: int | None = None
 
     sort_by: CompanySortField = CompanySortField.CREATED
+    sort_order: SortOrder = SortOrder.DESC
+
+    limit: int | None = None
+
+
+@dataclass(slots=True, kw_only=True)
+class ContactFilter:
+    name: str | None = None
+    url: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    min_applications: int | None = None
+    max_applications: int | None = None
+
+    sort_by: ContactSortField = ContactSortField.CREATED
     sort_order: SortOrder = SortOrder.DESC
 
     limit: int | None = None

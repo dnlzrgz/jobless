@@ -2,7 +2,12 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session, contains_eager, joinedload, selectinload
 
 from jobless import models, schemas
-from jobless.enums import ApplicationSortField, CompanySortField, SortOrder
+from jobless.enums import (
+    ApplicationSortField,
+    CompanySortField,
+    ContactSortField,
+    SortOrder,
+)
 from jobless.mapper import Mapper
 
 
@@ -103,8 +108,6 @@ class ApplicationRepository:
             )
 
         match f.sort_by:
-            case ApplicationSortField.ID:
-                sort_col = models.Application.id
             case ApplicationSortField.TITLE:
                 sort_col = models.Application.title
             case ApplicationSortField.COMPANY:
@@ -257,8 +260,6 @@ class CompanyRepository:
                 sort_col = models.Company.created_at
             case CompanySortField.UPDATED:
                 sort_col = models.Company.last_updated
-            case _:
-                sort_col = models.Company.id
 
         stmt = stmt.order_by(
             sort_col.desc() if f.sort_order == SortOrder.DESC else sort_col.asc()
@@ -312,9 +313,63 @@ class ContactRepository:
         instance = self._get(id)
         return self._mapper.contact_model_to_schema(instance) if instance else None
 
-    def list(self) -> list[schemas.Contact]:
-        instances = self._session.scalars(select(models.Contact)).all()
+    def filter(self, f: schemas.ContactFilter) -> list[schemas.Contact]:
+        app_count = func.count(models.Application.id).label("app_count")
+        needs_count = (
+            f.min_applications is not None
+            or f.max_applications is not None
+            or f.sort_by == ContactSortField.NUMBER_APPLICATIONS
+        )
+
+        stmt = select(models.Contact)
+
+        if needs_count:
+            stmt = stmt.outerjoin(models.Contact.applications).group_by(
+                models.Contact.id
+            )
+
+        if f.name:
+            stmt = stmt.where(models.Contact.name.ilike(f"%{f.name}%"))
+
+        if f.url:
+            stmt = stmt.where(models.Contact.url.ilike(f"%{f.url}%"))
+
+        if f.email:
+            stmt = stmt.where(models.Contact.url.ilike(f"%{f.email}%"))
+
+        having_clauses = []
+        if f.min_applications is not None:
+            having_clauses.append(app_count >= f.min_applications)
+        if f.max_applications is not None:
+            having_clauses.append(app_count <= f.max_applications)
+
+        if having_clauses:
+            stmt = stmt.having(and_(*having_clauses))
+
+        match f.sort_by:
+            case ContactSortField.NAME:
+                sort_col = models.Contact.name
+            case ContactSortField.EMAIL:
+                sort_col = models.Contact.email
+            case ContactSortField.NUMBER_APPLICATIONS:
+                sort_col = app_count
+            case ContactSortField.CREATED:
+                sort_col = models.Contact.created_at
+            case ContactSortField.UPDATED:
+                sort_col = models.Contact.last_updated
+
+        stmt = stmt.order_by(
+            sort_col.desc() if f.sort_order == SortOrder.DESC else sort_col.asc()
+        )
+
+        if f.limit is not None:
+            stmt = stmt.limit(f.limit)
+
+        instances = self._session.scalars(stmt).unique().all()
         return [self._mapper.contact_model_to_schema(i) for i in instances]
+
+    def list(self) -> list[schemas.Contact]:
+        return self.filter(schemas.ContactFilter())
 
     def update(self, schema: schemas.Contact) -> schemas.Contact | None:
         assert schema.id

@@ -6,7 +6,6 @@ import typer
 
 from jobless import schemas
 from jobless.commands.utils import (
-    console,
     print_application,
     print_applications,
     resolve_field,
@@ -537,7 +536,7 @@ def get_all(
         applications = app_repo.filter(f)
 
         if not applications:
-            console.print("No applications found")
+            typer.echo("No applications found", err=True)
             return
 
         print_applications(applications, format)

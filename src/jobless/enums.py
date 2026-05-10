@@ -31,7 +31,6 @@ class SortOrder(StrEnum):
 
 
 class ApplicationSortField(StrEnum):
-    ID = "id"
     TITLE = "title"
     COMPANY = "company"
     STATUS = "status"
@@ -42,8 +41,15 @@ class ApplicationSortField(StrEnum):
 
 
 class CompanySortField(StrEnum):
-    ID = "id"
     NAME = "name"
+    NUMBER_APPLICATIONS = "number_applications"
+    CREATED = "created"
+    UPDATED = "updated"
+
+
+class ContactSortField(StrEnum):
+    NAME = "name"
+    EMAIL = "email"
     NUMBER_APPLICATIONS = "number_applications"
     CREATED = "created"
     UPDATED = "updated"

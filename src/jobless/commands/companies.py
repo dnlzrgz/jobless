@@ -255,6 +255,8 @@ def get_all(
         $ jobless companies list --min-applications 2 --order asc
     """
 
+    # TODO: add option to filter by application::{title, id, etc.}
+
     context: AppContext = ctx.obj
     f = schemas.CompanyFilter(
         name=name,
