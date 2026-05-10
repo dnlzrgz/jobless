@@ -231,9 +231,8 @@ def print_companies(companies: list[schemas.Company], format: OutputFormat):
 
 
 def print_company(company: schemas.Company) -> None:
-    body_parts: list = [(_or_dash(company.industry), "")]
-    body_parts.append("\n")
-    body_parts.append((_or_dash(company.url), "link" if company.url else ""))
+    body_parts: list = [_or_dash(company.industry)]
+    body_parts.append("\n" + _or_dash(company.url))
     console.print(
         Panel(
             Text.assemble(*body_parts),
@@ -283,3 +282,17 @@ def print_contacts(contacts: list[schemas.Contact], format: OutputFormat):
                 f" {_or_dash(contact.url)}",
             )
             console.print(line)
+
+
+def print_contact(contact: schemas.Contact) -> None:
+    body_parts: list = [(_or_dash(contact.email), "")]
+    body_parts.append("\n" + _or_dash(contact.phone))
+    body_parts.append("\n" + _or_dash(contact.url))
+    console.print(
+        Panel(
+            Text.assemble(*body_parts),
+            title=Text(contact.name, style="bold"),
+            title_align="left",
+            padding=1,
+        )
+    )

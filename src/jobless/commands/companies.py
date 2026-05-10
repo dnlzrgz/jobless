@@ -250,9 +250,9 @@ def get_all(
     List all companies with optional filters.
 
     Examples:
-        $ jobless companies list
-        $ jobless companies list --industry 'fintech' --sort-by name
-        $ jobless companies list --min-applications 2 --order asc
+        $ jobless company list
+        $ jobless company list --industry 'fintech' --sort-by name
+        $ jobless company list --min-applications 2 --order asc
     """
 
     # TODO: add option to filter by application::{title, id, etc.}

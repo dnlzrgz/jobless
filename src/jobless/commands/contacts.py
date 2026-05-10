@@ -1,9 +1,14 @@
+import webbrowser
 from typing import Annotated
 
 import typer
 
 from jobless import schemas
-from jobless.commands.utils import print_contacts, resolve_field
+from jobless.commands.utils import (
+    print_contact,
+    print_contacts,
+    resolve_field,
+)
 from jobless.context import AppContext
 from jobless.enums import ContactSortField, OutputFormat, SortOrder
 from jobless.repositories import ContactRepository
@@ -76,6 +81,49 @@ def create(
         session.commit()
 
         typer.echo("Contact added")
+
+
+@cli.command("view")
+def view(
+    ctx: typer.Context,
+    contact_id: Annotated[
+        int,
+        typer.Argument(help="contact id"),
+    ],
+    web: Annotated[
+        bool | None,
+        typer.Option(
+            "-w",
+            "--web",
+            help="open the contact website if any.",
+        ),
+    ] = None,
+):
+    """
+    Show contact details.
+
+    Examples:
+      $ jobless contact view 3
+      $ jobless contact view 3 --web
+    """
+
+    context: AppContext = ctx.obj
+    with context.get_session() as session:
+        contact_repo = ContactRepository(session, context.mapper)
+        contact = contact_repo.get(contact_id)
+        if not contact:
+            typer.echo(f"contact {id} not found.", err=True)
+            raise typer.Exit(1)
+
+        if web:
+            if not contact.url:
+                typer.echo(f"contact {id} has no URL ", err=True)
+                raise typer.Exit(1)
+            else:
+                webbrowser.open(contact.url)
+                return
+
+        print_contact(contact)
 
 
 @cli.command("update")
@@ -227,6 +275,11 @@ def get_all(
 ):
     """
     List contacts with optional filters.
+
+    Examples:
+        $ jobless contact list
+        $ jobless contact list --name 'sarah'
+        $ jobless contact list --min-applications 2 --order asc
     """
 
     # TODO: add option to filter by application::{title, id, etc.}
