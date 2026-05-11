@@ -180,13 +180,13 @@ def view(
         typer.Argument(help="application ID"),
     ],
     web: Annotated[
-        bool | None,
+        bool,
         typer.Option(
             "-w",
             "--web",
             help="open the job posting URL if any.",
         ),
-    ] = None,
+    ] = False,
 ):
     """
     Show details for a job application.
@@ -296,11 +296,18 @@ def update(
             help="new notes; use '' to clear",
         ),
     ] = None,
-    skills: Annotated[
+    add_skills: Annotated[
         list[str] | None,
         typer.Option(
-            "--skill",
-            help="replace all skills; use '' to clear",
+            "--add-skill",
+            help="add a skill by name; repeat to add multiple",
+        ),
+    ] = None,
+    remove_skills: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--remove-skill",
+            help="remove a skill by name; repeat to add multiple",
         ),
     ] = None,
     add_contacts: Annotated[
@@ -326,7 +333,8 @@ def update(
 
     Examples:
       $ jobless app update 3 --status interviewing
-      $ jobless app update 3 --skill Python --skill Rust
+      $ jobless app update 3 --add-skill Python --remove-skill Rust
+      $ jobless app update 3 --remove-skill Go
       $ jobless app update 3 --notes ''
       $ jobless app update 3 --add-contact 5
       $ jobless app update 3 --remove-contact 2 --add-contact 9
@@ -335,6 +343,7 @@ def update(
     context: AppContext = ctx.obj
     with context.get_session() as session:
         app_repo = ApplicationRepository(session, context.mapper)
+        skill_repo = SkillRepository(session, context.mapper)
 
         existing_app = app_repo.get(id)
         if not existing_app:
@@ -347,12 +356,18 @@ def update(
             target_company = company_repo.get_or_create(company)
 
         target_skills = existing_app.skills
-        if skills is not None:
-            if skills == [""]:
-                target_skills = []
-            else:
-                skill_repo = SkillRepository(session, context.mapper)
-                target_skills = [skill_repo.get_or_create(s) for s in skills]
+        if add_skills or remove_skills:
+            if remove_skills:
+                remove_names = {s.lower() for s in remove_skills}
+                target_skills = [
+                    s for s in target_skills if s.name.lower() not in remove_names
+                ]
+
+            if add_skills:
+                existing_names = {s.name.lower() for s in target_skills}
+                for skill_name in add_skills:
+                    if skill_name.lower() not in existing_names:
+                        target_skills.append(skill_repo.get_or_create(skill_name))
 
         target_contacts = list(existing_app.contacts)
         if add_contacts or remove_contacts:

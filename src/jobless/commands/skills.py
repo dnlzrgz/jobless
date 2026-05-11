@@ -72,7 +72,7 @@ def get_all(
         typer.Option(
             "--min-applications",
             min=0,
-            help="filter contacts with at least this many applications",
+            help="filter skills with at least this many applications",
         ),
     ] = None,
     max_applications: Annotated[
@@ -80,7 +80,7 @@ def get_all(
         typer.Option(
             "--max-applications",
             min=0,
-            help="filter contacts with at most this many applications",
+            help="filter skills with at most this many applications",
         ),
     ] = None,
     sort_by: Annotated[

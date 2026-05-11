@@ -91,13 +91,13 @@ def view(
         typer.Argument(help="contact id"),
     ],
     web: Annotated[
-        bool | None,
+        bool,
         typer.Option(
             "-w",
             "--web",
             help="open the contact website if any.",
         ),
-    ] = None,
+    ] = False,
 ):
     """
     Show contact details.

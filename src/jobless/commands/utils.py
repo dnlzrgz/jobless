@@ -267,8 +267,8 @@ def print_contacts(contacts: list[schemas.Contact], format: OutputFormat):
             table.add_row(
                 str(contact.id),
                 contact.name,
-                _or_dash(contact.phone),
                 _or_dash(contact.email),
+                _or_dash(contact.phone),
                 _or_dash(contact.url),
             )
         console.print(table)

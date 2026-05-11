@@ -74,13 +74,13 @@ def view(
         typer.Argument(help="company id"),
     ],
     web: Annotated[
-        bool | None,
+        bool,
         typer.Option(
             "-w",
             "--web",
             help="open the company website if any.",
         ),
-    ] = None,
+    ] = False,
 ):
     """
     Show company details.
