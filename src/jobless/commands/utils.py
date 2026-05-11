@@ -296,3 +296,30 @@ def print_contact(contact: schemas.Contact) -> None:
             padding=1,
         )
     )
+
+
+def print_skills(skills: list[schemas.Skill], format: OutputFormat):
+    if format == OutputFormat.JSON:
+        output = [asdict(skill) for skill in skills]
+        console.print(
+            json.dumps(
+                output,
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if format == OutputFormat.TABLE:
+        table = Table(box=None, header_style="bold")
+        table.add_column("ID", style="dim")
+        table.add_column("Name")
+
+        for skill in skills:
+            table.add_row(str(skill.id), skill.name)
+
+        console.print(table)
+    else:
+        for skill in skills:
+            line = Text.assemble((f"{skill.id},", "bold"), f" {skill.name}")
+            console.print(line)

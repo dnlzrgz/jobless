@@ -34,6 +34,7 @@ class ApplicationSortField(StrEnum):
     TITLE = "title"
     COMPANY = "company"
     STATUS = "status"
+    LOCATION_TYPE = "location_type"
     DATE_APPLIED = "date"
     FOLLOW_UP_DATE = "follow_up"
     CREATED = "created"
@@ -50,6 +51,13 @@ class CompanySortField(StrEnum):
 class ContactSortField(StrEnum):
     NAME = "name"
     EMAIL = "email"
+    NUMBER_APPLICATIONS = "number_applications"
+    CREATED = "created"
+    UPDATED = "updated"
+
+
+class SkillSortField(StrEnum):
+    NAME = "name"
     NUMBER_APPLICATIONS = "number_applications"
     CREATED = "created"
     UPDATED = "updated"

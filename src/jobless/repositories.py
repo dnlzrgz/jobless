@@ -6,6 +6,7 @@ from jobless.enums import (
     ApplicationSortField,
     CompanySortField,
     ContactSortField,
+    SkillSortField,
     SortOrder,
 )
 from jobless.mapper import Mapper
@@ -115,6 +116,8 @@ class ApplicationRepository:
                 sort_col = models.Company.name
             case ApplicationSortField.STATUS:
                 sort_col = models.Application.status
+            case ApplicationSortField.LOCATION_TYPE:
+                sort_col = models.Application.location_type
             case ApplicationSortField.FOLLOW_UP_DATE:
                 sort_col = models.Application.follow_up_date
             case ApplicationSortField.CREATED:
@@ -412,15 +415,53 @@ class SkillRepository:
 
         return self._mapper.skill_model_to_schema(instance)
 
-    def list(self) -> list[schemas.Skill]:
-        instances = self._session.scalars(select(models.Skill)).all()
+    def filter(self, f: schemas.SkillFilter) -> list[schemas.Skill]:
+        app_count = func.count(models.Application.id).label("app_count")
+        needs_count = (
+            f.min_applications is not None
+            or f.max_applications is not None
+            or f.sort_by == SkillSortField.NUMBER_APPLICATIONS
+        )
+
+        stmt = select(models.Skill)
+
+        if needs_count:
+            stmt = stmt.outerjoin(models.Skill.applications).group_by(models.Skill.id)
+
+        if f.name:
+            stmt = stmt.where(models.Skill.name.ilike(f"%{f.name}%"))
+
+        having_clauses = []
+        if f.min_applications is not None:
+            having_clauses.append(app_count >= f.min_applications)
+        if f.max_applications is not None:
+            having_clauses.append(app_count <= f.max_applications)
+
+        if having_clauses:
+            stmt = stmt.having(and_(*having_clauses))
+
+        match f.sort_by:
+            case SkillSortField.NAME:
+                sort_col = models.Skill.name
+            case ContactSortField.NUMBER_APPLICATIONS:
+                sort_col = app_count
+            case ContactSortField.UPDATED:
+                sort_col = models.Skill.last_updated
+            case _:
+                sort_col = models.Skill.created_at
+
+        stmt = stmt.order_by(
+            sort_col.desc() if f.sort_order == SortOrder.DESC else sort_col.asc()
+        )
+
+        if f.limit is not None:
+            stmt = stmt.limit(f.limit)
+
+        instances = self._session.scalars(stmt).unique().all()
         return [self._mapper.skill_model_to_schema(i) for i in instances]
 
-    def list_orphaned(self) -> list[schemas.Skill]:
-        instances = self._session.scalars(
-            select(models.Skill).where(~models.Skill.applications.any())
-        ).all()
-        return [self._mapper.skill_model_to_schema(i) for i in instances]
+    def list(self) -> list[schemas.Skill]:
+        return self.filter(schemas.SkillFilter())
 
     def delete(self, id: int) -> None:
         instance = self._session.get(models.Skill, id)

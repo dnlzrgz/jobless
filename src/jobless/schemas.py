@@ -8,6 +8,7 @@ from jobless.enums import (
     CompanySortField,
     ContactSortField,
     Location,
+    SkillSortField,
     SortOrder,
     Status,
 )
@@ -118,6 +119,18 @@ class ContactFilter:
     max_applications: int | None = None
 
     sort_by: ContactSortField = ContactSortField.CREATED
+    sort_order: SortOrder = SortOrder.DESC
+
+    limit: int | None = None
+
+
+@dataclass(slots=True, kw_only=True)
+class SkillFilter:
+    name: str | None = None
+    min_applications: int | None = None
+    max_applications: int | None = None
+
+    sort_by: SkillSortField = SkillSortField.CREATED
     sort_order: SortOrder = SortOrder.DESC
 
     limit: int | None = None

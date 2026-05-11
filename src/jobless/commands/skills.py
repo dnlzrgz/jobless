@@ -1,34 +1,107 @@
 from typing import Annotated
+
 import typer
 
+from jobless.commands.utils import print_skills
 from jobless.context import AppContext
+from jobless.enums import OutputFormat, SkillSortField, SortOrder
 from jobless.repositories import SkillRepository
+from jobless.schemas import SkillFilter
 
 cli = typer.Typer(
     name="skill",
-    help="view and remove skills",
+    help="manage skills",
     no_args_is_help=True,
     suggest_commands=True,
 )
 
 
 @cli.command("list")
-def get_all(ctx: typer.Context):
+def get_all(
+    ctx: typer.Context,
+    name: Annotated[
+        str | None,
+        typer.Option(
+            "-n",
+            "--name",
+            help="filter by name",
+        ),
+    ] = None,
+    min_applications: Annotated[
+        int | None,
+        typer.Option(
+            "--min-applications",
+            min=0,
+            help="filter contacts with at least this many applications",
+        ),
+    ] = None,
+    max_applications: Annotated[
+        int | None,
+        typer.Option(
+            "--max-applications",
+            min=0,
+            help="filter contacts with at most this many applications",
+        ),
+    ] = None,
+    sort_by: Annotated[
+        SkillSortField,
+        typer.Option(
+            "--sort-by",
+            help="property to sort by",
+        ),
+    ] = SkillSortField.CREATED,
+    sort_order: Annotated[
+        SortOrder,
+        typer.Option(
+            "--order",
+            help="sort order",
+        ),
+    ] = SortOrder.DESC,
+    format: Annotated[
+        OutputFormat,
+        typer.Option(
+            "--format",
+            help="output format",
+        ),
+    ] = OutputFormat.TABLE,
+    limit: Annotated[
+        int | None,
+        typer.Option(
+            "--limit",
+            min=1,
+            help="limit the number of results",
+        ),
+    ] = None,
+):
     """
-    List all skills.
+    List all skills with optional filters.
+
+    Examples:
+        $ jobless skill list
+        $ jobless skill list --name 'python'
+        $ jobless skill list --min-applications 5
     """
+
+    # TODO: add option to filter by application::{title, id, etc.}
 
     context: AppContext = ctx.obj
+    f = SkillFilter(
+        name=name,
+        min_applications=min_applications,
+        max_applications=max_applications,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        limit=limit,
+    )
     with context.get_session() as session:
         skill_repo = SkillRepository(session, context.mapper)
-        skills = skill_repo.list()
+        skills = skill_repo.filter(f)
 
         if not skills:
-            typer.echo("No skills found.")
-            return
+            typer.echo("No skills found", err=True)
+            raise typer.Exit(1)
 
-        for skill in skills:
-            typer.echo(f"{skill.id}\t{skill.name}")
+        print_skills(skills, format)
 
 
 @cli.command("del")
