@@ -1,23 +1,19 @@
 # jobless
 
-**A simple job application manager for your terminal.**
+**A job application tracker for the command line.**
 
-jobless is a simple, easy-to-use job application manager that lives in your terminal, built with the goal of replacing cluttered spreadsheets and infinite browser bookmarks.
+Built with the idea of replacing cluttered spreadsheets and infinite browser tabs, jobless is a simple job application tracker for the terminal. Keep your applications, companies, contacts, and skills organized in a single place.
 
 ## Features
 
-- Manage applications, companies, and contacts all in one place.
-- Navigate, create, and update without lifting your hands from the keyboard.
+- Track job applications, companies, contacts, and skills.
+- Advance filtering and sorting.
 
 ## Roadmap (WIP)
 
+- TUI (more on this down below.)
 - Full-text search.
-- Advanced filtering.
-- `$EDITOR` integration.
-- `import` command.
-- AI-Assisted pipeline.
-- Notifications.
-- Statistics (maybe).
+- Notifications/Events.
 
 ## Installation
 
@@ -25,51 +21,100 @@ jobless can be installed via [`uv`](https://docs.astral.sh/uv/getting-started/in
 
 ```bash
 uv tool install --python 3.14 jobless
-
-# or to use it without installing.
+# or
 uvx --python 3.14 jobless
 ```
 
 ### Prefer `pipx`?
 
-If you prefer `pipx` is as easy as to run `pipx install jobless`.
+If you prefer `pipx`, it's as easy as running `pipx install jobless`.
 
 ## Commands
 
-jobless has a small CLI that allows to do certain things that would be harder to do on a TUI.
-
-### `export`
-
-You can export your entire database or your applications, companies, or contacts:
+### Applications
 
 ```bash
-# Export everything into a ZIP file.
-jobless export -f backup.zip
-
-# Export only applications into a CSV file.
-jobless export -f applications.csv --only applications
+jobless app <command>
 ```
 
-### `prune`
+| Command  | Description                                                                                                                            |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `add`    | Add a new application. Prompts for title and company if not provided as flags. Skills and contacts can be attached at creation time.   |
+| `view`   | Show all details for an application. Pass `--web` to open the job posting URL in your browser.                                         |
+| `update` | Update any field on an existing application. Add or remove individual skills and contacts without touching the rest.                   |
+| `list`   | List applications with optional filters. Filter by status, location type, company, skill, applied date range, or follow-up date range. |
+| `del`    | Delete one or more applications by ID.                                                                                                 |
 
-The `prune` command lets you remove stale applications and orphaned records. You just need to run:
+If you need to, you can always run:
 
 ```bash
-# See what's stale without deleting anything.
-jobless prune --days 180 --dry-run
-
-# Cleanup
-jobless prune --days 180
+jobless app --help
+# or
+jobless app <command> --help
 ```
 
-## Config
+### Companies
 
-jobless looks for a config file at `~/.config/jobless/config.toml`. By default, the SQLite database will also be created in this directory.
-
-### Theme
-
-At the moment, you can customize the theme using any of the [built-in textual themes](https://textual.textualize.io/guide/design/). To change the theme, add the following line to your config file:
-
-```toml
-theme = "catppuccin-latte"
+```bash
+jobless company <command>
 ```
+
+Companies can be created automatically when adding an application, but you can also manage them directly if you want or need to.
+
+| Command  | Description                                                                                                                   |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `add`    | Add a company manually with a name, website, and industry.                                                                    |
+| `view`   | Show company details. Pass `--web` to open the company website.                                                               |
+| `update` | Update the name, URL, or industry. Pass `''` to clear an optional field.                                                      |
+| `list`   | List companies with optional filters, including by number of linked applications.                                             |
+| `del`    | Delete one or more companies. If a company has linked applications you will be asked to confirm before everything is removed. |
+
+### Contacts
+
+```bash
+jobless contact <command>
+```
+
+Refers to people you've talked to, recruiters, or anyone else worth keeping a record of.
+
+| Command  | Description                                                                      |
+| -------- | -------------------------------------------------------------------------------- |
+| `add`    | Add a contact with a name, email, phone, and/or URL (e.g. a LinkedIn profile).   |
+| `view`   | Show contact details. Pass `--web` to open the contact's URL.                    |
+| `update` | Update any field. Pass `''` to clear an optional field.                          |
+| `list`   | List contacts with optional filters, including by number of linked applications. |
+| `del`    | Delete one or more contacts. Linked applications are not affected.               |
+
+### Skills
+
+```bash
+jobless skill <command>
+```
+
+Skills are created automatically when you tag an application. There is no `add` command but you can rename or delete them if needed here.
+
+| Command  | Description                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------- |
+| `update` | Rename a skill.                                                                             |
+| `list`   | List all skills. Filter by name or number of linked applications.                           |
+| `del`    | Delete one or more skills. They will be unlinked from any applications that reference them. |
+
+## Exporting
+
+Every `list` command supports a `--format` flag with supports JSON. If you need to export your data, the easiest way is to:
+
+```bash
+# dump all applications to a file
+jobless app list --format json > application.json
+
+# or export only active applications (for example)
+jobless app list --status applied --status interviewing --format json > active.json
+```
+
+## Where is the TUI?
+
+For the time being I decided to remove the TUI that was the original form of jobless. The reason being that the TUI was making me slower and this tool, instead of making things easy for me, was adding a hurdle that wasn't that necessary. That said, I plan to re-add the TUI in the future, but only after I've polished a few rough edges in the current CLI.
+
+## Using with other tools
+
+Since jobless is a plain CLI, it fits naturally into any shell workflow. The JSON output in particular makes it easy to pipe data into tools like `jq`, scripts, or AI assistants/agents with shell access.

@@ -339,6 +339,6 @@ def delete(
 
         for contact in valid:
             contact_repo.delete(contact.id)
+            typer.echo(f"Deleted '{contact.name}'")
 
         session.commit()
-        typer.echo(f"Deleted {len(valid)} contact(s)")

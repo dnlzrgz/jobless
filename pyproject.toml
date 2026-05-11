@@ -3,7 +3,7 @@ name = "jobless"
 version = "0.17.0"
 authors = [{ name = "dnlzrgz", email = "contact@dnlzrgz.com" }]
 license = "MIT"
-description = "A simple job application manager for your terminal."
+description = "A job application tracker for the command line."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -26,6 +26,7 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
   "Topic :: Office/Business",
   "Topic :: Terminals",
+  "Topic :: Utilities",
 ]
 
 [project.urls]
