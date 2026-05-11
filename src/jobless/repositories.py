@@ -443,12 +443,12 @@ class SkillRepository:
         match f.sort_by:
             case SkillSortField.NAME:
                 sort_col = models.Skill.name
-            case ContactSortField.NUMBER_APPLICATIONS:
+            case SkillSortField.NUMBER_APPLICATIONS:
                 sort_col = app_count
-            case ContactSortField.UPDATED:
-                sort_col = models.Skill.last_updated
-            case _:
+            case SkillSortField.CREATED:
                 sort_col = models.Skill.created_at
+            case SkillSortField.UPDATED:
+                sort_col = models.Skill.last_updated
 
         stmt = stmt.order_by(
             sort_col.desc() if f.sort_order == SortOrder.DESC else sort_col.asc()
@@ -462,6 +462,18 @@ class SkillRepository:
 
     def list(self) -> list[schemas.Skill]:
         return self.filter(schemas.SkillFilter())
+
+    def update(self, schema: schemas.Skill) -> schemas.Skill | None:
+        assert schema.id
+
+        instance = self.get(schema.id)
+        if not instance:
+            return None
+
+        instance.name = schema.name
+
+        self._session.flush()
+        return self._mapper.skill_model_to_schema(instance)
 
     def delete(self, id: int) -> None:
         instance = self._session.get(models.Skill, id)

@@ -2,11 +2,11 @@ from typing import Annotated
 
 import typer
 
+from jobless import schemas
 from jobless.commands.utils import print_skills
 from jobless.context import AppContext
 from jobless.enums import OutputFormat, SkillSortField, SortOrder
 from jobless.repositories import SkillRepository
-from jobless.schemas import SkillFilter
 
 cli = typer.Typer(
     name="skill",
@@ -14,6 +14,46 @@ cli = typer.Typer(
     no_args_is_help=True,
     suggest_commands=True,
 )
+
+
+@cli.command("update")
+def update(
+    ctx: typer.Context,
+    id: Annotated[
+        int,
+        typer.Argument(help="skill ID"),
+    ],
+    name: Annotated[
+        str,
+        typer.Option(
+            "-n",
+            "--name",
+            help="new skill name",
+        ),
+    ],
+):
+    """
+    Update a skill.
+
+    Examples:
+      $ jobless skill update 2 --name 'python'
+    """
+
+    context: AppContext = ctx.obj
+    with context.get_session() as session:
+        skill_repo = SkillRepository(session, context.mapper)
+
+        existing = skill_repo.get(id)
+        if not existing:
+            typer.echo(f"skill {id} not found", err=True)
+            raise typer.Exit(1)
+
+        updated = schemas.Skill(id=existing.id, name=name)
+
+        skill_repo.update(updated)
+        session.commit()
+
+        typer.echo("Skill updated")
 
 
 @cli.command("list")
@@ -85,7 +125,7 @@ def get_all(
     # TODO: add option to filter by application::{title, id, etc.}
 
     context: AppContext = ctx.obj
-    f = SkillFilter(
+    f = schemas.SkillFilter(
         name=name,
         min_applications=min_applications,
         max_applications=max_applications,
