@@ -185,7 +185,7 @@ class ApplicationRepository:
         return self._mapper.application_model_to_schema(instance)
 
     def delete(self, id: int) -> None:
-        instance = self._session.get(models.Application, id)
+        instance = self._get(id)
         if instance:
             self._session.delete(instance)
             self._session.flush()
@@ -401,8 +401,12 @@ class SkillRepository:
         self._session = session
         self._mapper = mapper
 
-    def get(self, id: int) -> models.Skill | None:
+    def _get(self, id: int) -> models.Skill | None:
         return self._session.get(models.Skill, id)
+
+    def get(self, id: int) -> schemas.Skill | None:
+        instance = self._get(id)
+        return self._mapper.skill_model_to_schema(instance) if instance else None
 
     def get_or_create(self, name: str) -> schemas.Skill:
         instance = self._session.scalar(
@@ -466,7 +470,7 @@ class SkillRepository:
     def update(self, schema: schemas.Skill) -> schemas.Skill | None:
         assert schema.id
 
-        instance = self.get(schema.id)
+        instance = self._get(schema.id)
         if not instance:
             return None
 
@@ -476,7 +480,7 @@ class SkillRepository:
         return self._mapper.skill_model_to_schema(instance)
 
     def delete(self, id: int) -> None:
-        instance = self._session.get(models.Skill, id)
+        instance = self._get(id)
         if instance:
             self._session.delete(instance)
             self._session.flush()
