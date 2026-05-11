@@ -112,12 +112,12 @@ def view(
         contact_repo = ContactRepository(session, context.mapper)
         contact = contact_repo.get(contact_id)
         if not contact:
-            typer.echo(f"contact {id} not found.", err=True)
+            typer.echo(f"contact {contact_id} not found.", err=True)
             raise typer.Exit(1)
 
         if web:
             if not contact.url:
-                typer.echo(f"contact {id} has no URL ", err=True)
+                typer.echo(f"contact {contact_id} has no URL ", err=True)
                 raise typer.Exit(1)
             else:
                 webbrowser.open(contact.url)

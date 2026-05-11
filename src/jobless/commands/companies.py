@@ -95,12 +95,12 @@ def view(
         company_repo = CompanyRepository(session, context.mapper)
         company = company_repo.get(company_id)
         if not company:
-            typer.echo(f"company {id} not found.", err=True)
+            typer.echo(f"company {company_id} not found.", err=True)
             raise typer.Exit(1)
 
         if web:
             if not company.url:
-                typer.echo(f"company {id} has no URL ", err=True)
+                typer.echo(f"company {company_id} has no URL ", err=True)
                 raise typer.Exit(1)
             else:
                 webbrowser.open(company.url)

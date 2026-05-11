@@ -201,12 +201,12 @@ def view(
         app_repo = ApplicationRepository(session, context.mapper)
         app = app_repo.get(app_id)
         if not app:
-            typer.echo(f"application {id} not found.", err=True)
+            typer.echo(f"application {app_id} not found.", err=True)
             raise typer.Exit(1)
 
         if web:
             if not app.url:
-                typer.echo(f"application {id} has no URL ", err=True)
+                typer.echo(f"application {app_id} has no URL ", err=True)
                 raise typer.Exit(1)
             else:
                 webbrowser.open(app.url)
@@ -423,10 +423,10 @@ def get_all(
         list[Location] | None,
         typer.Option(
             "--location-type",
-            help="filter by work arrangement; repeat to match mutliple",
+            help="filter by work arrangement; repeat to match multiple",
         ),
     ] = None,
-    company_name: Annotated[
+    company: Annotated[
         str | None,
         typer.Option(
             "--company-name",
@@ -521,7 +521,7 @@ def get_all(
         statuses=statuses or [],
         location_types=locations or [],
         skills=skills or [],
-        company_name=company_name,
+        company_name=company,
         company_id=company_id,
         applied_after=applied_after.date() if applied_after else None,
         applied_before=applied_before.date() if applied_before else None,
@@ -537,7 +537,7 @@ def get_all(
 
         if not applications:
             typer.echo("No applications found", err=True)
-            return
+            raise typer.Exit(1)
 
         print_applications(applications, format)
 
