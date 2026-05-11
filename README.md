@@ -4,8 +4,6 @@
 
 jobless is a simple, easy-to-use job application manager that lives in your terminal, built with the goal of replacing cluttered spreadsheets and infinite browser bookmarks.
 
-![screenshot](./.github/jobless.svg)
-
 ## Features
 
 - Manage applications, companies, and contacts all in one place.

@@ -1,3 +1,39 @@
+## 0.17.0 (2026-05-11)
+
+### Feat
+
+- **cli**: add --add-skill/--remove-skill on update application
+- **cli**: add update command for skills
+- **cli**: add filters to skills command
+- **cli**: add view command for contacts
+- **cli**: add filters to contacts command
+- **cli**: manage contacts on applications
+- **cli**: add view command for companies
+- **cli**: add filters to companies command
+- **cli**: add view command for applications
+- **cli**: add format options for applications list command
+- **cli**: add more options to filter applications by
+- **cli**: add filters to applications command
+- **cli**: add export command
+- **tui**: remove tui
+- **cli**: add util function for optional fields
+- **cli**: add command to manage companies
+- **cli**: add command to manage skills
+- **cli**: add command to manage applications
+- update util script
+- add mapper
+
+### Fix
+
+- **cli**: minor typos on commands
+- **repos**: return type of skill repository get method
+
+### Refactor
+
+- **settings**: extract settings loader
+- decouple schemas and models
+- extract location and status enums
+
 ## 0.16.0 (2026-03-01)
 
 ### Feat

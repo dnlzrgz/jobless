@@ -1,6 +1,6 @@
 [project]
 name = "jobless"
-version = "0.16.0"
+version = "0.17.0"
 authors = [{ name = "dnlzrgz", email = "contact@dnlzrgz.com" }]
 license = "MIT"
 description = "A simple job application manager for your terminal."
