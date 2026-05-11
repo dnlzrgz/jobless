@@ -10,6 +10,12 @@ from jobless.repositories import (
     ContactRepository,
     SkillRepository,
 )
+from tests.factories import (
+    ApplicationFactory,
+    CompanyFactory,
+    ContactFactory,
+    SkillFactory,
+)
 
 fake = Faker()
 
@@ -19,11 +25,6 @@ def engine():
     engine = get_engine("sqlite:///:memory:")
     init_db(engine)
     return engine
-
-
-@pytest.fixture
-def sessionmaker(db_engine):
-    return sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
 
 
 @pytest.fixture
@@ -39,6 +40,17 @@ def session(engine):
     transaction.rollback()
 
     connection.close()
+
+
+@pytest.fixture(autouse=True)
+def _wire_factories(session):
+    for factory_cls in (
+        SkillFactory,
+        CompanyFactory,
+        ContactFactory,
+        ApplicationFactory,
+    ):
+        factory_cls._meta.sqlalchemy_session = session
 
 
 @pytest.fixture(scope="session")
