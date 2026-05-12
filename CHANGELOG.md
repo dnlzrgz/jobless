@@ -1,3 +1,9 @@
+## 0.18.0 (2026-05-12)
+
+### Feat
+
+- **cli**: add --force flag to delete commands
+
 ## 0.17.0 (2026-05-11)
 
 ### Feat
