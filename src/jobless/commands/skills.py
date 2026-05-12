@@ -21,7 +21,7 @@ def update(
     ctx: typer.Context,
     id: Annotated[
         int,
-        typer.Argument(help="skill ID"),
+        typer.Argument(help="skill id"),
     ],
     name: Annotated[
         str,
@@ -149,36 +149,51 @@ def delete(
     ctx: typer.Context,
     skill_ids: Annotated[
         list[int],
-        typer.Argument(help="skill ID(s) to delete"),
+        typer.Argument(help="skill id(s) to delete"),
     ],
+    force: Annotated[
+        bool,
+        typer.Option(
+            "-f",
+            "--force",
+            help="skip confirmation prompt(s)",
+        ),
+    ] = False,
 ):
     """
     Delete one or more skills.
 
-    Any applications linked to a deleted skill will have that skill removed.
-
     Examples:
         $ jobless skill del 2
         $ jobless skill del 2 5 9
+        $ jobless skill del 2 --force
     """
 
     context: AppContext = ctx.obj
     with context.get_session() as session:
         skill_repo = SkillRepository(session, context.mapper)
 
-        valid = []
+        valid_skills = []
         for id in skill_ids:
             skill = skill_repo.get(id)
             if skill:
-                valid.append(skill)
+                valid_skills.append(skill)
             else:
                 typer.echo(f"skill {id} not found, skipping", err=True)
 
-        if not valid:
+        if not valid_skills:
+            typer.echo("nothing to do")
             raise typer.Exit(1)
 
-        for skill in valid:
+        for skill in valid_skills:
+            if not force:
+                if not typer.confirm(
+                    f"You're going to delete skill '{skill.name}'. Continue?",
+                    default=False,
+                ):
+                    continue
+
             skill_repo.delete(skill.id)
+            typer.echo(f"Skill '{skill.name}' deleted")
 
         session.commit()
-        typer.echo(f"Deleted {len(valid)} skill(s)")

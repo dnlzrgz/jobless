@@ -114,7 +114,7 @@ def update(
     ctx: typer.Context,
     id: Annotated[
         int,
-        typer.Argument(help="company ID"),
+        typer.Argument(help="company id"),
     ],
     name: Annotated[
         str | None,
@@ -284,8 +284,16 @@ def delete(
     ctx: typer.Context,
     company_ids: Annotated[
         list[int],
-        typer.Argument(help="company ID(s) to delete"),
+        typer.Argument(help="company id(s) to delete"),
     ],
+    force: Annotated[
+        bool,
+        typer.Option(
+            "-f",
+            "--force",
+            help="skip confirmation prompt(s)",
+        ),
+    ] = False,
 ):
     """
     Delete one or more companies.
@@ -303,37 +311,36 @@ def delete(
         company_repo = CompanyRepository(session, context.mapper)
         app_repo = ApplicationRepository(session, context.mapper)
 
-        valid = []
+        valid_companies = []
         for company_id in company_ids:
             company = company_repo.get(company_id)
             if company:
-                valid.append(company)
+                linked_apps = app_repo.list_by_company(company.id)
+                valid_companies.append((company, linked_apps))
             else:
                 typer.echo(f"company {company_id} not found, skipping", err=True)
 
-        if not valid:
+        if not valid_companies:
+            typer.echo("nothing to do")
             raise typer.Exit(1)
 
-        for company in valid:
-            linked = app_repo.list_by_company(company.id)
-
-            if linked:
-                typer.echo(
-                    f"'{company.name}' has {len(linked)} linked application(s): "
-                    + ", ".join(str(a.id) for a in linked)
-                )
-
-                confirmed = typer.confirm(
-                    "Delete the company and all linked applications?"
-                )
-                if not confirmed:
+        for company, linked_apps in valid_companies:
+            if not force:
+                if not typer.confirm(
+                    f"Delete company '{company.name}' and {len(linked_apps)} application(s)?"
+                ):
                     typer.echo(f"Skipping '{company.name}'")
                     continue
 
-                for app in linked:
-                    app_repo.delete(app.id)
+            for app in linked_apps:
+                app_repo.delete(app.id)
 
             company_repo.delete(company.id)
-            typer.echo(f"Deleted '{company.name}'")
+            if linked_apps:
+                typer.echo(
+                    f"Deleted company '{company.name}' and {len(linked_apps)} application(s)"
+                )
+            else:
+                typer.echo(f"Deleted company '{company.name}'")
 
         session.commit()

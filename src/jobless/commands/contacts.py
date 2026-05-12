@@ -131,7 +131,7 @@ def update(
     ctx: typer.Context,
     id: Annotated[
         int,
-        typer.Argument(help="contact ID"),
+        typer.Argument(help="contact id"),
     ],
     name: Annotated[
         str | None,
@@ -312,8 +312,16 @@ def delete(
     ctx: typer.Context,
     contact_ids: Annotated[
         list[int],
-        typer.Argument(help="ID(s) of contacts to delete"),
+        typer.Argument(help="id(s) of contacts to delete"),
     ],
+    force: Annotated[
+        bool,
+        typer.Option(
+            "-f",
+            "--force",
+            help="skip confirmation prompt(s)",
+        ),
+    ] = False,
 ):
     """
     Delete one or more contacts.
@@ -321,24 +329,33 @@ def delete(
     Examples:
       $ jobless contact del 2
       $ jobless contact del 2 6
+      $ jobless contact del 3 --force
     """
     context: AppContext = ctx.obj
     with context.get_session() as session:
         contact_repo = ContactRepository(session, context.mapper)
 
-        valid = []
+        valid_contacts = []
         for contact_id in contact_ids:
             contact = contact_repo.get(contact_id)
             if contact:
-                valid.append(contact)
+                valid_contacts.append(contact)
             else:
                 typer.echo(f"contact {contact_id} not found, skipping", err=True)
 
-        if not valid:
+        if not valid_contacts:
+            typer.echo("nothing to do")
             raise typer.Exit(1)
 
-        for contact in valid:
+        for contact in valid_contacts:
+            if not force:
+                if not typer.confirm(
+                    f"You're going to delete contact '{contact.name}'. Continue?",
+                    default=False,
+                ):
+                    continue
+
             contact_repo.delete(contact.id)
-            typer.echo(f"Deleted '{contact.name}'")
+            typer.echo(f"Contact '{contact.name}' deleted")
 
         session.commit()

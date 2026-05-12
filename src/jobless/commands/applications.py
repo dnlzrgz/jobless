@@ -41,7 +41,7 @@ def create(
         typer.Option(
             "-t",
             "--title",
-            prompt=True,
+            prompt="job title",
             help="job title",
         ),
     ],
@@ -50,7 +50,7 @@ def create(
         typer.Option(
             "-c",
             "--company",
-            prompt=True,
+            prompt="company name",
             help="company name",
         ),
     ],
@@ -116,7 +116,7 @@ def create(
         list[int] | None,
         typer.Option(
             "--contact",
-            help="link a contact by ID; repeat to link multiple",
+            help="link a contact by id; repeat to link multiple",
         ),
     ] = None,
 ):
@@ -177,7 +177,7 @@ def view(
     ctx: typer.Context,
     app_id: Annotated[
         int,
-        typer.Argument(help="application ID"),
+        typer.Argument(help="application id"),
     ],
     web: Annotated[
         bool,
@@ -220,7 +220,7 @@ def update(
     ctx: typer.Context,
     id: Annotated[
         int,
-        typer.Argument(help="application ID"),
+        typer.Argument(help="application id"),
     ],
     title: Annotated[
         str | None,
@@ -314,14 +314,14 @@ def update(
         list[int] | None,
         typer.Option(
             "--add-contact",
-            help="link a contact by ID; repeat to link multiple",
+            help="link a contact by id; repeat to link multiple",
         ),
     ] = None,
     remove_contacts: Annotated[
         list[int] | None,
         typer.Option(
             "--remove-contact",
-            help="unlink a contact by ID; repeat to unlink multiple",
+            help="unlink a contact by id; repeat to unlink multiple",
         ),
     ] = None,
 ):
@@ -452,7 +452,7 @@ def get_all(
         int | None,
         typer.Option(
             "--company-id",
-            help="filter by company ID",
+            help="filter by company id",
         ),
     ] = None,
     skills: Annotated[
@@ -562,15 +562,23 @@ def delete(
     ctx: typer.Context,
     app_ids: Annotated[
         list[int],
-        typer.Argument(help="ID(s) of applications to delete"),
+        typer.Argument(help="id(s) of applications to delete"),
     ],
+    force: Annotated[
+        bool,
+        typer.Option(
+            "-f",
+            "--force",
+            help="skip confirmation prompt(s)",
+        ),
+    ] = False,
 ):
     """
     Delete one or more job applications.
 
     Examples:
       $ jobless app del 4
-      $ jobless app del 4 7 12
+      $ jobless app del 4 7 12 --force
     """
 
     context: AppContext = ctx.obj
@@ -586,10 +594,18 @@ def delete(
                 typer.echo(f"application {id} not found. skipping", err=True)
 
         if not valid_apps:
+            typer.echo("nothing to do")
             raise typer.Exit(1)
 
         for app in valid_apps:
+            if not force:
+                if not typer.confirm(
+                    f"You're going to delete application {app.id}: '{app.title}'. Continue?",
+                    default=False,
+                ):
+                    continue
+
             app_repo.delete(app.id)
+            typer.echo(f"Application {app.id} deleted")
 
         session.commit()
-        typer.echo(f"Deleted {len(valid_apps)} application(s)")
