@@ -77,14 +77,14 @@ def seed_data():
                 url=fake.unique.url(),
                 industry=fake.bs(),
             )
-            for _ in range(randint(10, 50))
+            for _ in range(randint(100, 200))
         ]
         session.add_all(companies)
         session.flush()
 
         print("🌱 adding applications...")
         applications = []
-        for _ in range(randint(100, 200)):
+        for _ in range(randint(500, 1000)):
             applied_date = fake.date_between(start_date="-2y", end_date="today")
             updated_date = fake.date_between(start_date=applied_date, end_date="today")
             follow_up_date = (
@@ -104,7 +104,7 @@ def seed_data():
                 follow_up_date=follow_up_date,
                 last_updated=updated_date,
                 company=choice(companies),
-                skills=sample(skills, randint(2, 3)),
+                skills=sample(skills, randint(0, len(skills))),
                 contacts=[
                     Contact(
                         name=fake.name(),
