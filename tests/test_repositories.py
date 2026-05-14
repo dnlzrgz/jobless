@@ -2,8 +2,147 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from jobless import schemas
-from jobless.enums import SkillSortField, SortOrder
-from tests.factories import ApplicationFactory, ContactFactory, SkillFactory
+from jobless.enums import CompanySortField, SkillSortField, SortOrder
+from tests.factories import (
+    ApplicationFactory,
+    CompanyFactory,
+    ContactFactory,
+    SkillFactory,
+)
+
+
+def test_company_add_adds_new_company(company_repo):
+    company_data = CompanyFactory.build(name="Acme Corp")
+    result = company_repo.add(company_data)
+
+    assert result.id is not None
+    assert result.name == "Acme Corp"
+
+
+def test_company_get_returns_existing_company(company_repo):
+    company = CompanyFactory(name="Globex")
+    result = company_repo.get(company.id)
+
+    assert result is not None
+    assert result.id == company.id
+    assert len(company_repo.list()) == 1
+
+
+def test_company_get_or_create_creates_new(company_repo):
+    name = "New Startup Inc"
+    result = company_repo.get_or_create(name)
+    assert result.id is not None
+    assert result.name == name
+
+
+def test_company_get_or_create_returns_existing(company_repo):
+    existing = CompanyFactory(name="Old Reliable")
+    result = company_repo.get_or_create("Old Reliable")
+    assert result.id == existing.id
+
+
+def test_company_update_basic_info(company_repo):
+    original = CompanyFactory(name="Initech", industry="Software")
+
+    updated = company_repo.update(
+        schemas.Company(
+            id=original.id,
+            name="Initech 2.0",
+            industry="Consulting",
+            url="https://initech.com",
+        )
+    )
+
+    assert updated.name == "Initech 2.0"
+    assert updated.industry == "Consulting"
+    assert updated.url == "https://initech.com"
+
+
+def test_company_update_duplicated_name_raises(company_repo):
+    CompanyFactory(name="Taken Name")
+    original = CompanyFactory(name="Original Name")
+
+    with pytest.raises(IntegrityError):
+        company_repo.update(schemas.Company(id=original.id, name="Taken Name"))
+
+
+def test_company_delete(company_repo):
+    company = CompanyFactory()
+    company_id = company.id
+
+    assert company_repo.get(company_id) is not None
+    company_repo.delete(company_id)
+    assert company_repo.get(company_id) is None
+
+
+def test_company_filter_by_name_partial(company_repo):
+    CompanyFactory(name="Apple")
+    CompanyFactory(name="Microsoft")
+
+    results = company_repo.filter(schemas.CompanyFilter(name="ppl"))
+
+    assert len(results) == 1
+    assert results[0].name == "Apple"
+
+
+def test_company_filter_by_industry(company_repo):
+    CompanyFactory(industry="Tech")
+    CompanyFactory(industry="Finance")
+
+    results = company_repo.filter(schemas.CompanyFilter(industry="tech"))
+
+    assert len(results) == 1
+    assert results[0].industry == "Tech"
+
+
+def test_company_filter_min_applications(company_repo):
+    target = CompanyFactory()
+    other = CompanyFactory()
+
+    ApplicationFactory.create_batch(2, company=target)
+
+    results = company_repo.filter(schemas.CompanyFilter(min_applications=1))
+    ids = [r.id for r in results]
+
+    assert target.id in ids
+    assert other.id not in ids
+
+
+def test_company_filter_max_applications(company_repo):
+    busy = CompanyFactory()
+    quiet = CompanyFactory()
+
+    ApplicationFactory.create_batch(3, company=busy)
+
+    results = company_repo.filter(schemas.CompanyFilter(max_applications=1))
+    ids = [r.id for r in results]
+
+    assert quiet.id in ids
+    assert busy.id not in ids
+
+
+def test_company_sort_by_application_count(company_repo):
+    busy = CompanyFactory(name="Popular")
+    quiet = CompanyFactory(name="Lonely")
+
+    ApplicationFactory.create_batch(5, company=busy)
+    ApplicationFactory.create_batch(1, company=quiet)
+
+    results = company_repo.filter(
+        schemas.CompanyFilter(
+            sort_by=CompanySortField.NUMBER_APPLICATIONS, sort_order=SortOrder.DESC
+        )
+    )
+
+    assert results[0].id == busy.id
+    assert results[1].id == quiet.id
+
+
+def test_company_filter_limit(company_repo):
+    CompanyFactory.create_batch(10)
+
+    results = company_repo.filter(schemas.CompanyFilter(limit=4))
+    assert len(results) == 4
 
 
 def test_contact_add_adds_new_contact(contact_repo):
@@ -116,7 +255,9 @@ def test_skill_get_or_create_creates_new_skill(skill_repo):
 def test_skill_get_or_create_returns_existing_skill(skill_repo):
     result1 = skill_repo.get_or_create("Rust")
     result2 = skill_repo.get_or_create("Rust")
+
     assert result1.id == result2.id
+    assert len(skill_repo.list()) == 1
 
 
 def test_skill_update_name(skill_repo):
