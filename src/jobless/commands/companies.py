@@ -332,9 +332,6 @@ def delete(
                     typer.echo(f"Skipping '{company.name}'")
                     continue
 
-            for app in linked_apps:
-                app_repo.delete(app.id)
-
             company_repo.delete(company.id)
             if linked_apps:
                 typer.echo(

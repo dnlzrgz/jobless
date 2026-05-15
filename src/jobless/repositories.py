@@ -1,5 +1,5 @@
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import Session, contains_eager, joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from jobless import models, schemas
 from jobless.enums import (
@@ -81,10 +81,8 @@ class ApplicationRepository:
         if f.company_id:
             stmt = stmt.where(models.Application.company_id == f.company_id)
         elif f.company_name:
-            stmt = (
-                stmt.join(models.Application.company)
-                .where(models.Company.name.ilike(f.company_name))
-                .options(contains_eager(models.Application.company))
+            stmt = stmt.join(models.Application.company).where(
+                models.Company.name.ilike(f"%{f.company_name}%")
             )
 
         if f.applied_after:
@@ -259,10 +257,10 @@ class CompanyRepository:
                 sort_col = models.Company.name
             case CompanySortField.NUMBER_APPLICATIONS:
                 sort_col = app_count
-            case CompanySortField.CREATED:
-                sort_col = models.Company.created_at
             case CompanySortField.UPDATED:
                 sort_col = models.Company.last_updated
+            case _:
+                sort_col = models.Company.created_at
 
         stmt = stmt.order_by(
             sort_col.desc() if f.sort_order == SortOrder.DESC else sort_col.asc()
@@ -356,10 +354,10 @@ class ContactRepository:
                 sort_col = models.Contact.email
             case ContactSortField.NUMBER_APPLICATIONS:
                 sort_col = app_count
-            case ContactSortField.CREATED:
-                sort_col = models.Contact.created_at
             case ContactSortField.UPDATED:
                 sort_col = models.Contact.last_updated
+            case _:
+                sort_col = models.Contact.created_at
 
         stmt = stmt.order_by(
             sort_col.desc() if f.sort_order == SortOrder.DESC else sort_col.asc()
@@ -449,10 +447,10 @@ class SkillRepository:
                 sort_col = models.Skill.name
             case SkillSortField.NUMBER_APPLICATIONS:
                 sort_col = app_count
-            case SkillSortField.CREATED:
-                sort_col = models.Skill.created_at
             case SkillSortField.UPDATED:
                 sort_col = models.Skill.last_updated
+            case _:
+                sort_col = models.Skill.created_at
 
         stmt = stmt.order_by(
             sort_col.desc() if f.sort_order == SortOrder.DESC else sort_col.asc()

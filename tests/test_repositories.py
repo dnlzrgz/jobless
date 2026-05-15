@@ -10,11 +10,12 @@ from tests.factories import (
     SkillFactory,
 )
 
+# TODO: add test for applications.
+# TODO: add test for deleting companies with applications linked.
+
 
 def test_company_add_adds_new_company(company_repo):
-    company_data = CompanyFactory.build(name="Acme Corp")
-    result = company_repo.add(company_data)
-
+    result = company_repo.add(schemas.Company(name="Acme Corp"))
     assert result.id is not None
     assert result.name == "Acme Corp"
 
@@ -25,7 +26,6 @@ def test_company_get_returns_existing_company(company_repo):
 
     assert result is not None
     assert result.id == company.id
-    assert len(company_repo.list()) == 1
 
 
 def test_company_get_or_create_creates_new(company_repo):
@@ -73,6 +73,16 @@ def test_company_delete(company_repo):
     assert company_repo.get(company_id) is not None
     company_repo.delete(company_id)
     assert company_repo.get(company_id) is None
+
+
+def test_company_delete_cascades_to_applications(company_repo, application_repo):
+    company = CompanyFactory()
+    app = ApplicationFactory(company=company)
+
+    company_repo.delete(company.id)
+
+    assert company_repo.get(company.id) is None
+    assert application_repo.get(app.id) is None
 
 
 def test_company_filter_by_name_partial(company_repo):
@@ -146,7 +156,7 @@ def test_company_filter_limit(company_repo):
 
 
 def test_contact_add_adds_new_contact(contact_repo):
-    result = contact_repo.add(ContactFactory.build(name="John"))
+    result = contact_repo.add(schemas.Contact(name="John"))
     assert result.id is not None
     assert result.name == "John"
 

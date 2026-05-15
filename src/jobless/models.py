@@ -64,7 +64,10 @@ class Company(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String, index=True, unique=True)
     url: Mapped[str | None] = mapped_column(String, unique=True)
     industry: Mapped[str | None] = mapped_column(String)
-    applications: Mapped[list[Application]] = relationship(back_populates="company")
+    applications: Mapped[list[Application]] = relationship(
+        back_populates="company",
+        cascade="all, delete-orphan",
+    )
 
 
 class Skill(Base, TimestampMixin):
@@ -113,7 +116,18 @@ class Application(Base, TimestampMixin):
     date_applied: Mapped[date | None] = mapped_column()
     follow_up_date: Mapped[date | None] = mapped_column()
     notes: Mapped[str | None] = mapped_column(String)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
-    company: Mapped[Company] = relationship()
-    contacts: Mapped[list[Contact]] = relationship(secondary=application_contact_link)
-    skills: Mapped[list[Skill]] = relationship(secondary=application_skill_link)
+    company_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "companies.id",
+            ondelete="CASCADE",
+        )
+    )
+    company: Mapped[Company] = relationship(back_populates="applications")
+    contacts: Mapped[list[Contact]] = relationship(
+        secondary=application_contact_link,
+        back_populates="applications",
+    )
+    skills: Mapped[list[Skill]] = relationship(
+        secondary=application_skill_link,
+        back_populates="applications",
+    )
